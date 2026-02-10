@@ -8,6 +8,9 @@ on:
     branches: [main, master]
   workflow_dispatch:
 
+env:
+  PACKAGE_VERSION: ${{ github.ref_type == 'tag' && github.ref_name || '0.0.0' }}
+
 jobs:
   build_wheels:
     name: Wheels on ${{ matrix.arch }}
@@ -25,6 +28,9 @@ jobs:
       - uses: actions/checkout@v4
         with:
           submodules: true
+
+      - name: Set version from tag
+        run: sed -i "s/version=\".*\"/version=\"${PACKAGE_VERSION#v}\"/" setup.py
 
       - uses: pypa/cibuildwheel@v2.23
         env:
@@ -48,6 +54,9 @@ jobs:
       - uses: actions/checkout@v4
         with:
           submodules: true
+
+      - name: Set version from tag
+        run: sed -i "s/version=\".*\"/version=\"${PACKAGE_VERSION#v}\"/" setup.py
 
       - run: pipx run build --sdist
 
