@@ -2,7 +2,7 @@
 
 Native Python bindings for btrfs — create filesystems, manage subvolumes and snapshots, mount and unmount. No shell commands, no subprocess, no runtime dependencies beyond libc.
 
-Built as C extensions directly from vendored [btrfs-progs](https://github.com/kdave/btrfs-progs) source. `pip install .` is all you need.
+Built as C extensions directly from vendored [btrfs-progs](https://github.com/kdave/btrfs-progs) source. Pre-built binary wheels are available on [PyPI](https://pypi.org/project/pybtrfs/) — no compiler needed.
 
 ## Why not the existing `btrfs` package?
 
@@ -10,13 +10,24 @@ The [`btrfs`](https://pypi.org/project/btrfs/) package on PyPI requires `libbtrf
 
 `pybtrfs` statically compiles everything from vendored source — the only build-time requirement is a C compiler and Python headers. The resulting `.so` files link only to libc.
 
+All blocking operations (ioctl calls, sync, mkfs, mount/umount) release the GIL, so they can safely run in parallel from multiple threads without blocking the interpreter.
+
 ## Requirements
 
 - Linux with btrfs support
-- Python 3.12+
-- GCC and Python headers for building (`apt install python3-dev`)
+- Python 3.10+
 
 ## Installation
+
+Pre-built wheels for x86_64 and aarch64 (manylinux_2_28):
+
+```bash
+pip install pybtrfs
+```
+
+Releases with wheels are also available on [GitHub](https://github.com/mosquito/pybtrfs/releases).
+
+To build from source (requires GCC and Python headers):
 
 ```bash
 pip install .
