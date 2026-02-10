@@ -2,6 +2,7 @@ import platform
 from pathlib import Path
 
 from setuptools import setup, Extension
+from setuptools.command.build_ext import build_ext as _build_ext
 
 long_description = Path("README.md").read_text(encoding="utf-8")
 
@@ -107,10 +108,6 @@ mkfs_ext = Extension(
         f"{_VENDOR}/cmds/receive-dump.c",
         # crypto
         f"{_VENDOR}/crypto/crc32c.c",
-        *(
-            [f"{_VENDOR}/crypto/crc32c-pcl-intel-asm_64.S"]
-            if platform.machine() == "x86_64" else []
-        ),
         f"{_VENDOR}/crypto/hash.c",
         f"{_VENDOR}/crypto/xxhash.c",
         f"{_VENDOR}/crypto/sha224-256.c",
@@ -145,7 +142,27 @@ mkfs_ext = Extension(
     ],
 )
 
+_CRC32C_ASM = f"{_VENDOR}/crypto/crc32c-pcl-intel-asm_64.S"
+
+
+class build_ext(_build_ext):
+    def build_extensions(self):
+        if platform.machine() == "x86_64":
+            for ext in self.extensions:
+                if ext.name == "pybtrfs.mkfs":
+                    obj = Path(
+                        self.build_temp, _CRC32C_ASM,
+                    ).with_suffix(".o")
+                    obj.parent.mkdir(parents=True, exist_ok=True)
+                    self.compiler.spawn(
+                        ["gcc", "-c", "-fPIC", _CRC32C_ASM, "-o", str(obj)],
+                    )
+                    ext.extra_objects.append(str(obj))
+        super().build_extensions()
+
+
 setup(
+    cmdclass={"build_ext": build_ext},
     name="pybtrfs",
     version="0.5.0",
     description="Static Python bindings for btrfs ioctl operations",
