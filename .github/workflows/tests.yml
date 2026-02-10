@@ -7,6 +7,9 @@ on:
     branches: [main, master]
   workflow_dispatch:
 
+env:
+  FORCE_COLOR: 1
+
 jobs:
   tests:
     name: Tests on Python ${{ matrix.python-version }}
