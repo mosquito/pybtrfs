@@ -1,3 +1,4 @@
+import platform
 from pathlib import Path
 
 from setuptools import setup, Extension
@@ -106,6 +107,10 @@ mkfs_ext = Extension(
         f"{_VENDOR}/cmds/receive-dump.c",
         # crypto
         f"{_VENDOR}/crypto/crc32c.c",
+        *(
+            [f"{_VENDOR}/crypto/crc32c-pcl-intel-asm_64.S"]
+            if platform.machine() == "x86_64" else []
+        ),
         f"{_VENDOR}/crypto/hash.c",
         f"{_VENDOR}/crypto/xxhash.c",
         f"{_VENDOR}/crypto/sha224-256.c",
