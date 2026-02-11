@@ -164,7 +164,10 @@ class build_ext(_build_ext):
 setup(
     cmdclass={"build_ext": build_ext},
     name="pybtrfs",
-    version="0.5.0",
+    # This is a placeholder version. The actual version is set by the
+    # CI pipeline from the git tag (e.g. v1.2.3 -> version="1.2.3").
+    # Do not bump this manually.
+    version="0.0.1",
     description="Static Python bindings for btrfs ioctl operations",
     long_description=long_description,
     long_description_content_type="text/markdown",
