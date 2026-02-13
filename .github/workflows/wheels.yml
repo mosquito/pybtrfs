@@ -15,16 +15,18 @@ env:
 
 jobs:
   build_wheels:
-    name: Wheels on ${{ matrix.arch }}
+    name: Wheels ${{ matrix.image }} ${{ matrix.arch }}
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
         include:
-          - os: ubuntu-latest
-            arch: x86_64
-          - os: ubuntu-24.04-arm
-            arch: aarch64
+          - { os: ubuntu-latest,    arch: x86_64,  libc: manylinux, image: manylinux_2_28 }
+          - { os: ubuntu-24.04-arm, arch: aarch64, libc: manylinux, image: manylinux_2_28 }
+          - { os: ubuntu-latest,    arch: x86_64,  libc: manylinux, image: manylinux2014 }
+          - { os: ubuntu-24.04-arm, arch: aarch64, libc: manylinux, image: manylinux2014 }
+          - { os: ubuntu-latest,    arch: x86_64,  libc: musllinux, image: musllinux_1_2 }
+          - { os: ubuntu-24.04-arm, arch: aarch64, libc: musllinux, image: musllinux_1_2 }
 
     steps:
       - uses: actions/checkout@v4
@@ -36,17 +38,19 @@ jobs:
 
       - uses: pypa/cibuildwheel@v2.23
         env:
-          CIBW_BUILD: "cp310-manylinux* cp311-manylinux* cp312-manylinux* cp313-manylinux* cp314-manylinux*"
+          CIBW_BUILD: "cp310-${{ matrix.libc }}* cp311-${{ matrix.libc }}* cp312-${{ matrix.libc }}* cp313-${{ matrix.libc }}* cp314-${{ matrix.libc }}*"
           CIBW_ARCHS_LINUX: ${{ matrix.arch }}
-          CIBW_MANYLINUX_X86_64_IMAGE: manylinux_2_28
-          CIBW_MANYLINUX_AARCH64_IMAGE: manylinux_2_28
+          CIBW_MANYLINUX_X86_64_IMAGE: ${{ matrix.image }}
+          CIBW_MANYLINUX_AARCH64_IMAGE: ${{ matrix.image }}
+          CIBW_MUSLLINUX_X86_64_IMAGE: ${{ matrix.image }}
+          CIBW_MUSLLINUX_AARCH64_IMAGE: ${{ matrix.image }}
           CIBW_BUILD_VERBOSITY: 1
         with:
           output-dir: dist
 
       - uses: actions/upload-artifact@v4
         with:
-          name: wheels-${{ matrix.arch }}
+          name: wheels-${{ matrix.image }}-${{ matrix.arch }}
           path: dist/*.whl
 
   build_sdist:

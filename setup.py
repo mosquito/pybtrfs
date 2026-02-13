@@ -23,7 +23,7 @@ pybtrfs = Extension(
         "vendor/btrfs-progs/libbtrfsutil/stubs.c",
     ],
     include_dirs=["src/btrfsutils", "vendor/btrfs-progs/libbtrfsutil"],
-    define_macros=[("_GNU_SOURCE", "1"), ("HAVE_REALLOCARRAY", "1")],
+    define_macros=[("_GNU_SOURCE", "1")],
 )
 
 mount_ext = Extension(
