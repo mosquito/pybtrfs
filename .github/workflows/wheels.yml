@@ -15,20 +15,18 @@ env:
 
 jobs:
   build_wheels:
-    name: Wheels ${{ matrix.image }} ${{ matrix.arch }}
+    name: Wheels ${{ matrix.tag }} ${{ matrix.arch }}
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
         include:
-          - { os: ubuntu-latest,    arch: x86_64,  libc: manylinux, image: manylinux_2_28 }
-          - { os: ubuntu-24.04-arm, arch: aarch64, libc: manylinux, image: manylinux_2_28 }
-          - { os: ubuntu-latest,    arch: x86_64,  libc: manylinux, image: manylinux_2_34 }
-          - { os: ubuntu-24.04-arm, arch: aarch64, libc: manylinux, image: manylinux_2_34 }
-          - { os: ubuntu-latest,    arch: x86_64,  libc: manylinux, image: manylinux_2_39 }
-          - { os: ubuntu-24.04-arm, arch: aarch64, libc: manylinux, image: manylinux_2_39 }
-          - { os: ubuntu-latest,    arch: x86_64,  libc: musllinux, image: musllinux_1_2 }
-          - { os: ubuntu-24.04-arm, arch: aarch64, libc: musllinux, image: musllinux_1_2 }
+          - { os: ubuntu-latest,    arch: x86_64,  libc: manylinux, image: "quay.io/pypa/manylinux_2_28_x86_64", tag: manylinux_2_28 }
+          - { os: ubuntu-24.04-arm, arch: aarch64, libc: manylinux, image: "quay.io/pypa/manylinux_2_28_aarch64", tag: manylinux_2_28 }
+          - { os: ubuntu-latest,    arch: x86_64,  libc: manylinux, image: "quay.io/pypa/manylinux_2_34_x86_64", tag: manylinux_2_34 }
+          - { os: ubuntu-24.04-arm, arch: aarch64, libc: manylinux, image: "quay.io/pypa/manylinux_2_34_aarch64", tag: manylinux_2_34 }
+          - { os: ubuntu-latest,    arch: x86_64,  libc: musllinux, image: "quay.io/pypa/musllinux_1_2_x86_64", tag: musllinux_1_2 }
+          - { os: ubuntu-24.04-arm, arch: aarch64, libc: musllinux, image: "quay.io/pypa/musllinux_1_2_aarch64", tag: musllinux_1_2 }
 
     steps:
       - uses: actions/checkout@v4
@@ -52,7 +50,7 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: wheels-${{ matrix.image }}-${{ matrix.arch }}
+          name: wheels-${{ matrix.tag }}-${{ matrix.arch }}
           path: dist/*.whl
 
   build_sdist:
