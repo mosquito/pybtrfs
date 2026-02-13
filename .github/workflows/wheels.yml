@@ -23,8 +23,10 @@ jobs:
         include:
           - { os: ubuntu-latest,    arch: x86_64,  libc: manylinux, image: manylinux_2_28 }
           - { os: ubuntu-24.04-arm, arch: aarch64, libc: manylinux, image: manylinux_2_28 }
-          - { os: ubuntu-latest,    arch: x86_64,  libc: manylinux, image: manylinux2014 }
-          - { os: ubuntu-24.04-arm, arch: aarch64, libc: manylinux, image: manylinux2014 }
+          - { os: ubuntu-latest,    arch: x86_64,  libc: manylinux, image: manylinux_2_34 }
+          - { os: ubuntu-24.04-arm, arch: aarch64, libc: manylinux, image: manylinux_2_34 }
+          - { os: ubuntu-latest,    arch: x86_64,  libc: manylinux, image: manylinux_2_39 }
+          - { os: ubuntu-24.04-arm, arch: aarch64, libc: manylinux, image: manylinux_2_39 }
           - { os: ubuntu-latest,    arch: x86_64,  libc: musllinux, image: musllinux_1_2 }
           - { os: ubuntu-24.04-arm, arch: aarch64, libc: musllinux, image: musllinux_1_2 }
 
