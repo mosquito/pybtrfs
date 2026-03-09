@@ -2,7 +2,7 @@
 #include <Python.h>
 #include <sys/mount.h>
 
-/* ── mount(source, target, flags=0, data="") ─────────────────────── */
+/* -- mount(source, target, flags=0, data="") ----------------------- */
 
 PyDoc_STRVAR(pybtrfs_mount_doc,
 "mount(source: str, target: str, fstype: str = \"btrfs\", flags: int = 0, data: str = \"\") -> None\n\n"
@@ -35,7 +35,7 @@ pybtrfs_mount(PyObject *self, PyObject *args, PyObject *kwargs)
     Py_RETURN_NONE;
 }
 
-/* ── umount(target, flags=0) ─────────────────────────────────────── */
+/* -- umount(target, flags=0) --------------------------------------- */
 
 PyDoc_STRVAR(pybtrfs_umount_doc,
 "umount(target: str, flags: int = 0) -> None\n\n"
@@ -65,7 +65,7 @@ pybtrfs_umount(PyObject *self, PyObject *args, PyObject *kwargs)
     Py_RETURN_NONE;
 }
 
-/* ── method table ────────────────────────────────────────────────── */
+/* -- method table -------------------------------------------------- */
 
 static PyMethodDef mount_methods[] = {
     {"mount",  (PyCFunction)pybtrfs_mount,  METH_VARARGS | METH_KEYWORDS, pybtrfs_mount_doc},
@@ -73,7 +73,7 @@ static PyMethodDef mount_methods[] = {
     {NULL, NULL, 0, NULL},
 };
 
-/* ── module definition ───────────────────────────────────────────── */
+/* -- module definition --------------------------------------------- */
 
 static struct PyModuleDef mount_module = {
     PyModuleDef_HEAD_INIT,

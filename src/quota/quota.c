@@ -7,7 +7,7 @@
 #include "kernel-shared/uapi/btrfs.h"
 #include "kernel-shared/uapi/btrfs_tree.h"
 
-/* ── helper ──────────────────────────────────────────────────────── */
+/* -- helper -------------------------------------------------------- */
 
 static int
 open_path(const char *path)
@@ -18,7 +18,7 @@ open_path(const char *path)
     return fd;
 }
 
-/* ── quota_enable(path) ──────────────────────────────────────────── */
+/* -- quota_enable(path) -------------------------------------------- */
 
 PyDoc_STRVAR(quota_enable_doc,
 "quota_enable(path: str) -> None\n\n"
@@ -52,7 +52,7 @@ pybtrfs_quota_enable(PyObject *self, PyObject *args)
     Py_RETURN_NONE;
 }
 
-/* ── quota_enable_simple(path) ───────────────────────────────────── */
+/* -- quota_enable_simple(path) ------------------------------------- */
 
 PyDoc_STRVAR(quota_enable_simple_doc,
 "quota_enable_simple(path: str) -> None\n\n"
@@ -86,7 +86,7 @@ pybtrfs_quota_enable_simple(PyObject *self, PyObject *args)
     Py_RETURN_NONE;
 }
 
-/* ── quota_disable(path) ─────────────────────────────────────────── */
+/* -- quota_disable(path) ------------------------------------------- */
 
 PyDoc_STRVAR(quota_disable_doc,
 "quota_disable(path: str) -> None\n\n"
@@ -120,7 +120,7 @@ pybtrfs_quota_disable(PyObject *self, PyObject *args)
     Py_RETURN_NONE;
 }
 
-/* ── quota_rescan(path) ──────────────────────────────────────────── */
+/* -- quota_rescan(path) -------------------------------------------- */
 
 PyDoc_STRVAR(quota_rescan_doc,
 "quota_rescan(path: str) -> None\n\n"
@@ -153,7 +153,7 @@ pybtrfs_quota_rescan(PyObject *self, PyObject *args)
     Py_RETURN_NONE;
 }
 
-/* ── quota_rescan_status(path) ───────────────────────────────────── */
+/* -- quota_rescan_status(path) ------------------------------------- */
 
 PyDoc_STRVAR(quota_rescan_status_doc,
 "quota_rescan_status(path: str) -> dict\n\n"
@@ -188,7 +188,7 @@ pybtrfs_quota_rescan_status(PyObject *self, PyObject *args)
                          "progress", (unsigned long long)rargs.progress);
 }
 
-/* ── quota_rescan_wait(path) ─────────────────────────────────────── */
+/* -- quota_rescan_wait(path) --------------------------------------- */
 
 PyDoc_STRVAR(quota_rescan_wait_doc,
 "quota_rescan_wait(path: str) -> None\n\n"
@@ -218,7 +218,7 @@ pybtrfs_quota_rescan_wait(PyObject *self, PyObject *args)
     Py_RETURN_NONE;
 }
 
-/* ── qgroup_create(path, qgroupid) ──────────────────────────────── */
+/* -- qgroup_create(path, qgroupid) -------------------------------- */
 
 PyDoc_STRVAR(qgroup_create_doc,
 "qgroup_create(path: str, qgroupid: int) -> None\n\n"
@@ -254,7 +254,7 @@ pybtrfs_qgroup_create(PyObject *self, PyObject *args)
     Py_RETURN_NONE;
 }
 
-/* ── qgroup_destroy(path, qgroupid) ─────────────────────────────── */
+/* -- qgroup_destroy(path, qgroupid) ------------------------------- */
 
 PyDoc_STRVAR(qgroup_destroy_doc,
 "qgroup_destroy(path: str, qgroupid: int) -> None\n\n"
@@ -290,7 +290,7 @@ pybtrfs_qgroup_destroy(PyObject *self, PyObject *args)
     Py_RETURN_NONE;
 }
 
-/* ── qgroup_assign(path, src, dst) ───────────────────────────────── */
+/* -- qgroup_assign(path, src, dst) --------------------------------- */
 
 PyDoc_STRVAR(qgroup_assign_doc,
 "qgroup_assign(path: str, src: int, dst: int) -> None\n\n"
@@ -327,7 +327,7 @@ pybtrfs_qgroup_assign(PyObject *self, PyObject *args)
     Py_RETURN_NONE;
 }
 
-/* ── qgroup_remove(path, src, dst) ───────────────────────────────── */
+/* -- qgroup_remove(path, src, dst) --------------------------------- */
 
 PyDoc_STRVAR(qgroup_remove_doc,
 "qgroup_remove(path: str, src: int, dst: int) -> None\n\n"
@@ -364,7 +364,7 @@ pybtrfs_qgroup_remove(PyObject *self, PyObject *args)
     Py_RETURN_NONE;
 }
 
-/* ── qgroup_limit(path, qgroupid, max_rfer=0, max_excl=0) ───────── */
+/* -- qgroup_limit(path, qgroupid, max_rfer=0, max_excl=0) --------- */
 
 PyDoc_STRVAR(qgroup_limit_doc,
 "qgroup_limit(path: str, qgroupid: int, max_rfer: int = 0, max_excl: int = 0) -> None\n\n"
@@ -415,7 +415,7 @@ pybtrfs_qgroup_limit(PyObject *self, PyObject *args, PyObject *kwargs)
     Py_RETURN_NONE;
 }
 
-/* ── qgroup_info(path) → list[dict] ─────────────────────────────── */
+/* -- qgroup_info(path) → list[dict] ------------------------------- */
 
 PyDoc_STRVAR(qgroup_info_doc,
 "qgroup_info(path: str) -> list[dict]\n\n"
@@ -597,7 +597,7 @@ error:
     return NULL;
 }
 
-/* ── method table ────────────────────────────────────────────────── */
+/* -- method table -------------------------------------------------- */
 
 static PyMethodDef quota_methods[] = {
     {"quota_enable",        (PyCFunction)pybtrfs_quota_enable,
@@ -627,7 +627,7 @@ static PyMethodDef quota_methods[] = {
     {NULL, NULL, 0, NULL},
 };
 
-/* ── module definition ───────────────────────────────────────────── */
+/* -- module definition --------------------------------------------- */
 
 static struct PyModuleDef quota_module = {
     PyModuleDef_HEAD_INIT,

@@ -1,7 +1,7 @@
 #include "module.h"
 #include <stdlib.h>
 
-/* ── queries ───────────────────────────────────────────────────────── */
+/* -- queries --------------------------------------------------------- */
 
 static PyObject *
 mod_is_subvolume(PyObject *self, PyObject *args, PyObject *kwds)
@@ -90,7 +90,7 @@ mod_subvolume_info(PyObject *self, PyObject *args, PyObject *kwds)
     return SubvolumeInfo_from_struct(&info);
 }
 
-/* ── read-only flag ────────────────────────────────────────────────── */
+/* -- read-only flag -------------------------------------------------- */
 
 static PyObject *
 mod_get_subvolume_read_only(PyObject *self, PyObject *args, PyObject *kwds)
@@ -132,7 +132,7 @@ mod_set_subvolume_read_only(PyObject *self, PyObject *args, PyObject *kwds)
     Py_RETURN_NONE;
 }
 
-/* ── default subvolume ─────────────────────────────────────────────── */
+/* -- default subvolume ----------------------------------------------- */
 
 static PyObject *
 mod_get_default_subvolume(PyObject *self, PyObject *args, PyObject *kwds)
@@ -174,7 +174,7 @@ mod_set_default_subvolume(PyObject *self, PyObject *args, PyObject *kwds)
     Py_RETURN_NONE;
 }
 
-/* ── create / snapshot / delete ────────────────────────────────────── */
+/* -- create / snapshot / delete -------------------------------------- */
 
 static PyObject *
 mod_create_subvolume(PyObject *self, PyObject *args, PyObject *kwds)
@@ -288,7 +288,7 @@ mod_deleted_subvolumes(PyObject *self, PyObject *args, PyObject *kwds)
     return list;
 }
 
-/* ── exported method table ─────────────────────────────────────────── */
+/* -- exported method table ------------------------------------------- */
 
 PyMethodDef subvolume_methods[] = {
     {"is_subvolume", (PyCFunction)mod_is_subvolume,

@@ -20,7 +20,7 @@
 #include "uuid/uuid.h"
 #include "blkid/blkid.h"
 
-/* ── UUID implementation ─────────────────────────────────────── */
+/* -- UUID implementation --------------------------------------- */
 
 void uuid_clear(uuid_t uu)
 {
@@ -126,7 +126,7 @@ void uuid_unparse_upper(const uuid_t uu, char *out)
 	uuid_fmt(uu, out, 1);
 }
 
-/* ── BLKID implementation (stubs + minimal real logic) ───────── */
+/* -- BLKID implementation (stubs + minimal real logic) --------- */
 
 struct blkid_struct_probe {
 	int fd;
