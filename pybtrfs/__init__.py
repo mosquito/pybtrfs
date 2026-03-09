@@ -47,6 +47,33 @@ from .mount import (
     MNT_DETACH,
     MNT_EXPIRE,
 )
+from .quota import (
+    quota_enable,
+    quota_enable_simple,
+    quota_disable,
+    quota_rescan,
+    quota_rescan_status,
+    quota_rescan_wait,
+    qgroup_create,
+    qgroup_destroy,
+    qgroup_assign,
+    qgroup_remove,
+    qgroup_limit,
+    qgroup_info,
+)
+from .quota import (
+    BTRFS_QUOTA_CTL_ENABLE,
+    BTRFS_QUOTA_CTL_DISABLE,
+    BTRFS_QUOTA_CTL_ENABLE_SIMPLE_QUOTA,
+    BTRFS_QGROUP_STATUS_FLAG_ON,
+    BTRFS_QGROUP_STATUS_FLAG_RESCAN,
+    BTRFS_QGROUP_STATUS_FLAG_INCONSISTENT,
+    BTRFS_QGROUP_STATUS_FLAG_SIMPLE_MODE,
+    BTRFS_QGROUP_LIMIT_MAX_RFER,
+    BTRFS_QGROUP_LIMIT_MAX_EXCL,
+    BTRFS_QGROUP_LIMIT_RSV_RFER,
+    BTRFS_QGROUP_LIMIT_RSV_EXCL,
+)
 from .mkfs import mkfs as _mkfs
 from .mkfs import (
     CSUM_TYPE_CRC32,
@@ -128,6 +155,26 @@ class RaidProfile(IntEnum):
     DUP = RAID_DUP
 
 
+class QuotaCtl(IntEnum):
+    ENABLE = BTRFS_QUOTA_CTL_ENABLE
+    DISABLE = BTRFS_QUOTA_CTL_DISABLE
+    ENABLE_SIMPLE = BTRFS_QUOTA_CTL_ENABLE_SIMPLE_QUOTA
+
+
+class QgroupStatusFlags(IntEnum):
+    ON = BTRFS_QGROUP_STATUS_FLAG_ON
+    RESCAN = BTRFS_QGROUP_STATUS_FLAG_RESCAN
+    INCONSISTENT = BTRFS_QGROUP_STATUS_FLAG_INCONSISTENT
+    SIMPLE_MODE = BTRFS_QGROUP_STATUS_FLAG_SIMPLE_MODE
+
+
+class QgroupLimitFlags(IntEnum):
+    MAX_RFER = BTRFS_QGROUP_LIMIT_MAX_RFER
+    MAX_EXCL = BTRFS_QGROUP_LIMIT_MAX_EXCL
+    RSV_RFER = BTRFS_QGROUP_LIMIT_RSV_RFER
+    RSV_EXCL = BTRFS_QGROUP_LIMIT_RSV_EXCL
+
+
 def mount_data(**kwargs: str) -> str:
     """Build a comma-separated mount data string from keyword arguments.
 
@@ -198,6 +245,19 @@ __all__ = [
     "mount_data",
     # mkfs function
     "mkfs",
+    # quota functions
+    "quota_enable",
+    "quota_enable_simple",
+    "quota_disable",
+    "quota_rescan",
+    "quota_rescan_status",
+    "quota_rescan_wait",
+    "qgroup_create",
+    "qgroup_destroy",
+    "qgroup_assign",
+    "qgroup_remove",
+    "qgroup_limit",
+    "qgroup_info",
     # enum classes
     "CreateSnapshotFlags",
     "DeleteSubvolumeFlags",
@@ -207,4 +267,7 @@ __all__ = [
     "UmountFlags",
     "CsumType",
     "RaidProfile",
+    "QuotaCtl",
+    "QgroupStatusFlags",
+    "QgroupLimitFlags",
 ]

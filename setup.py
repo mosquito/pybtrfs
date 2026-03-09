@@ -32,6 +32,13 @@ mount_ext = Extension(
     define_macros=[("_GNU_SOURCE", "1")],
 )
 
+quota_ext = Extension(
+    "pybtrfs.quota",
+    sources=["src/quota/quota.c"],
+    include_dirs=["vendor/btrfs-progs"],
+    define_macros=[("_GNU_SOURCE", "1")],
+)
+
 _VENDOR = "vendor/btrfs-progs"
 
 mkfs_ext = Extension(
@@ -195,5 +202,5 @@ setup(
     python_requires=">=3.10",
     packages=["pybtrfs"],
     package_data={"pybtrfs": ["py.typed", "*.pyi"]},
-    ext_modules=[pybtrfs, mount_ext, mkfs_ext],
+    ext_modules=[pybtrfs, mount_ext, mkfs_ext, quota_ext],
 )

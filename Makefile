@@ -4,6 +4,7 @@ EXT_SUFFIX := $(shell $(PYTHON) -c "import sysconfig; print(sysconfig.get_config
 SO       := pybtrfs/btrfsutils$(EXT_SUFFIX)
 MOUNT_SO := pybtrfs/mount$(EXT_SUFFIX)
 MKFS_SO  := pybtrfs/mkfs$(EXT_SUFFIX)
+QUOTA_SO := pybtrfs/quota$(EXT_SUFFIX)
 
 MANYLINUX_IMAGE ?= quay.io/pypa/manylinux_2_28_x86_64
 
@@ -11,7 +12,7 @@ MANYLINUX_IMAGE ?= quay.io/pypa/manylinux_2_28_x86_64
 
 all: build stubs
 
-build: $(SO) $(MOUNT_SO) $(MKFS_SO)
+build: $(SO) $(MOUNT_SO) $(MKFS_SO) $(QUOTA_SO)
 
 $(SO): src/btrfsutils/*.c src/btrfsutils/*.h vendor/btrfs-progs/libbtrfsutil/*.c vendor/btrfs-progs/libbtrfsutil/*.h setup.py
 	$(PYTHON) setup.py build_ext --inplace
@@ -22,10 +23,13 @@ $(MOUNT_SO): src/mount/mount.c setup.py
 $(MKFS_SO): src/mkfs/mkfs.c src/mkfs/btrfs_config.h setup.py
 	$(PYTHON) setup.py build_ext --inplace
 
+$(QUOTA_SO): src/quota/quota.c setup.py
+	$(PYTHON) setup.py build_ext --inplace
+
 test: $(SO)
 	sudo BTRFS=$(BTRFS) PYTHONPATH=. pytest -v
 
-stubs: $(SO) $(MOUNT_SO) $(MKFS_SO) gen_stubs.py
+stubs: $(SO) $(MOUNT_SO) $(MKFS_SO) $(QUOTA_SO) gen_stubs.py
 	PYTHONPATH=. $(PYTHON) gen_stubs.py
 
 install: $(SO)
