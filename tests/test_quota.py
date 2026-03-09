@@ -72,7 +72,7 @@ def btrfs_mount(tmp_path):
 def quota_enabled(btrfs_mount):
     """A btrfs mountpoint with quotas enabled; disables on teardown."""
     quota_enable(btrfs_mount)
-    quota_rescan(btrfs_mount)
+    # quota_enable triggers an automatic rescan; just wait for it
     quota_rescan_wait(btrfs_mount)
     yield btrfs_mount
     try:
@@ -93,15 +93,15 @@ class TestQuotaEnableDisable:
         quota_enable_simple(btrfs_mount)
         quota_disable(btrfs_mount)
 
-    def test_double_enable_raises(self, btrfs_mount):
+    def test_double_enable_is_idempotent(self, btrfs_mount):
         quota_enable(btrfs_mount)
-        with pytest.raises(OSError):
-            quota_enable(btrfs_mount)
+        # kernel silently accepts a second enable
+        quota_enable(btrfs_mount)
         quota_disable(btrfs_mount)
 
-    def test_disable_without_enable_raises(self, btrfs_mount):
-        with pytest.raises(OSError):
-            quota_disable(btrfs_mount)
+    def test_disable_without_enable_is_idempotent(self, btrfs_mount):
+        # kernel silently accepts disable when quotas are not enabled
+        quota_disable(btrfs_mount)
 
 
 class TestQuotaRescan:

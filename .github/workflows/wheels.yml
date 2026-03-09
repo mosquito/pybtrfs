@@ -11,6 +11,7 @@ on:
   workflow_dispatch:
 
 env:
+  FORCE_COLOR: 1
   PACKAGE_VERSION: ${{ github.ref_type == 'tag' && github.ref_name || '0.0.0' }}
 
 jobs:
