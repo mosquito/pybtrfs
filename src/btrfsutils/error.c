@@ -1,7 +1,7 @@
 #include "module.h"
 #include <errno.h>
 
-/* ── exception type ────────────────────────────────────────────────── */
+/* -- exception type -------------------------------------------------- */
 
 PyObject *BtrfsUtilError = NULL;
 
@@ -46,7 +46,7 @@ PyType_Spec BtrfsUtilError_spec = {
     .slots     = BtrfsUtilError_slots,
 };
 
-/* ── helper: raise BtrfsUtilError from an error code ───────────────── */
+/* -- helper: raise BtrfsUtilError from an error code ----------------- */
 
 PyObject *
 set_error(enum btrfs_util_error err)

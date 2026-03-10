@@ -3,7 +3,7 @@
 /* defined in error.c */
 extern PyObject *BtrfsUtilError_type_new(void);
 
-/* ── merge sentinel-terminated method tables ───────────────────────── */
+/* -- merge sentinel-terminated method tables ------------------------- */
 
 static int
 count_methods(PyMethodDef *m)
@@ -30,7 +30,7 @@ merge_methods(void)
     return all;
 }
 
-/* ── module definition ─────────────────────────────────────────────── */
+/* -- module definition ----------------------------------------------- */
 
 static struct PyModuleDef module_def = {
     PyModuleDef_HEAD_INIT,

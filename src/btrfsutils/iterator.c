@@ -142,7 +142,7 @@ SubvolumeIterator_get_fd(SubvolumeIteratorObject *self, void *closure)
     return PyLong_FromLong(btrfs_util_subvolume_iterator_fd(self->iter));
 }
 
-/* ── type tables ───────────────────────────────────────────────────── */
+/* -- type tables ----------------------------------------------------- */
 
 static PyMethodDef SubvolumeIterator_methods[] = {
     {"close",     (PyCFunction)SubvolumeIterator_close, METH_NOARGS,

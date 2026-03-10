@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
 
 env:
-  FORCE_COLOR: 1
+  FORCE_COLORS: 1
 
 jobs:
   tests:

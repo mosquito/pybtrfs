@@ -47,7 +47,7 @@
 #include "check/qgroup-verify.h"
 #include "mkfs/common.h"
 
-/* ── structs from mkfs/main.c ─────────────────────────────────── */
+/* -- structs from mkfs/main.c ----------------------------------- */
 
 struct mkfs_allocation {
 	u64 data;
@@ -69,7 +69,7 @@ struct prepare_device_progress {
 	int ret;
 };
 
-/* ── static helpers copied from mkfs/main.c ──────────────────── */
+/* -- static helpers copied from mkfs/main.c -------------------- */
 /*
  * These functions are static in main.c so we must copy them here.
  * The exit(1) in create_one_raid_group has been replaced with
@@ -712,7 +712,7 @@ static void *prepare_one_device(void *ctx)
 	return NULL;
 }
 
-/* ── Python wrapper ──────────────────────────────────────────── */
+/* -- Python wrapper -------------------------------------------- */
 
 PyDoc_STRVAR(pybtrfs_mkfs_doc,
 "mkfs(*devices: str, label: str = \"\", nodesize: int = 16384, sectorsize: int = 4096,\n"
@@ -1124,7 +1124,7 @@ out_free:
 			     "num_bytes", result_num_bytes);
 }
 
-/* ── method table ────────────────────────────────────────────── */
+/* -- method table ---------------------------------------------- */
 
 static PyMethodDef mkfs_methods[] = {
 	{"mkfs", (PyCFunction)pybtrfs_mkfs, METH_VARARGS | METH_KEYWORDS,
@@ -1132,7 +1132,7 @@ static PyMethodDef mkfs_methods[] = {
 	{NULL, NULL, 0, NULL},
 };
 
-/* ── module definition ───────────────────────────────────────── */
+/* -- module definition ----------------------------------------- */
 
 static struct PyModuleDef mkfs_module = {
 	PyModuleDef_HEAD_INIT,

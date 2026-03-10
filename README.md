@@ -101,6 +101,68 @@ mount("/dev/sdb", "/mnt/readonly", flags=MountFlags.RDONLY)
 umount("/mnt/data")
 ```
 
+### Quota management
+
+```python
+import pybtrfs
+
+# Enable quotas (required before any qgroup operations)
+pybtrfs.quota_enable("/mnt/data")
+
+# Or enable simple quotas (squota) — faster, less overhead
+pybtrfs.quota_enable_simple("/mnt/data")
+
+# Rescan to ensure accounting is up to date
+pybtrfs.quota_rescan("/mnt/data")
+pybtrfs.quota_rescan_wait("/mnt/data")
+
+# Check rescan status
+status = pybtrfs.quota_rescan_status("/mnt/data")
+print(status)  # {"flags": 0, "progress": ...}
+
+# List all qgroups with usage
+for qg in pybtrfs.qgroup_info("/mnt/data"):
+    print(f"qgroup {qg['qgroupid']}: "
+          f"rfer={qg['rfer']}, excl={qg['excl']}, "
+          f"max_rfer={qg['max_rfer']}, max_excl={qg['max_excl']}")
+
+# Set a 10 GiB referenced limit on the root qgroup
+pybtrfs.qgroup_limit("/mnt/data", qgroupid=5,
+                      max_rfer=10 * 1024**3)
+
+# Disable quotas
+pybtrfs.quota_disable("/mnt/data")
+```
+
+### Hierarchical qgroups
+
+```python
+import pybtrfs
+
+pybtrfs.quota_enable("/mnt/data")
+
+# Create a level-1 parent qgroup (1/1)
+parent = (1 << 48) | 1
+pybtrfs.qgroup_create("/mnt/data", parent)
+
+# Create subvolumes and assign them to the parent group
+pybtrfs.create_subvolume("/mnt/data/project_a")
+pybtrfs.create_subvolume("/mnt/data/project_b")
+child_a = pybtrfs.subvolume_id("/mnt/data/project_a")
+child_b = pybtrfs.subvolume_id("/mnt/data/project_b")
+
+pybtrfs.qgroup_assign("/mnt/data", child_a, parent)
+pybtrfs.qgroup_assign("/mnt/data", child_b, parent)
+
+# Set a shared 50 GiB limit across both subvolumes
+pybtrfs.qgroup_limit("/mnt/data", parent, max_rfer=50 * 1024**3)
+
+# Remove assignment and destroy the group when no longer needed
+pybtrfs.qgroup_remove("/mnt/data", child_a, parent)
+pybtrfs.qgroup_remove("/mnt/data", child_b, parent)
+pybtrfs.qgroup_destroy("/mnt/data", parent)
+```
+
 ### Error handling
 
 ```python
@@ -115,7 +177,7 @@ except pybtrfs.BtrfsUtilError as e:
 
 ## API reference
 
-The package ships with `.pyi` stubs — full signatures and docstrings are available via `help(pybtrfs)`, `help(pybtrfs.mkfs)`, `help(pybtrfs.mount)`, and your IDE's autocomplete.
+The package ships with `.pyi` stubs — full signatures and docstrings are available via `help(pybtrfs)`, `help(pybtrfs.mkfs)`, `help(pybtrfs.mount)`, `help(pybtrfs.quota)`, and your IDE's autocomplete.
 
 ## Testing
 

@@ -1,6 +1,6 @@
 #include "module.h"
 
-/* ── helpers ───────────────────────────────────────────────────────── */
+/* -- helpers --------------------------------------------------------- */
 
 static PyObject *
 uuid_to_bytes(const uint8_t uuid[16])
@@ -15,7 +15,7 @@ timespec_to_float(const struct timespec *ts)
         (double)ts->tv_sec + (double)ts->tv_nsec / 1e9);
 }
 
-/* ── SubvolumeInfo type ────────────────────────────────────────────── */
+/* -- SubvolumeInfo type ---------------------------------------------- */
 
 typedef struct {
     PyObject_HEAD
