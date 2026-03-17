@@ -37,7 +37,7 @@ jobs:
       - name: Set version from tag
         run: sed -i "s/version=\".*\"/version=\"${PACKAGE_VERSION#v}\"/" setup.py
 
-      - uses: pypa/cibuildwheel@v3
+      - uses: pypa/cibuildwheel@v3.4
         env:
           CIBW_BUILD: "cp310-${{ matrix.libc }}* cp311-${{ matrix.libc }}* cp312-${{ matrix.libc }}* cp313-${{ matrix.libc }}* cp314-${{ matrix.libc }}*"
           CIBW_ENABLE: cpython-prerelease
