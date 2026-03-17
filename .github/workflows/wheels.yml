@@ -40,6 +40,7 @@ jobs:
       - uses: pypa/cibuildwheel@v2.23
         env:
           CIBW_BUILD: "cp310-${{ matrix.libc }}* cp311-${{ matrix.libc }}* cp312-${{ matrix.libc }}* cp313-${{ matrix.libc }}* cp314-${{ matrix.libc }}*"
+          CIBW_PRERELEASE_PYTHONS: true
           CIBW_ARCHS_LINUX: ${{ matrix.arch }}
           CIBW_MANYLINUX_X86_64_IMAGE: ${{ matrix.image }}
           CIBW_MANYLINUX_AARCH64_IMAGE: ${{ matrix.image }}
