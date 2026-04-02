@@ -30,11 +30,18 @@ def parse_sig(doc: str | None) -> tuple[str, str] | None:
     return params, ret
 
 
+def _fix_pathlike(sig: str) -> str:
+    """Rewrite bare os.PathLike → os.PathLike[str] for .pyi correctness."""
+    return re.sub(r"os\.PathLike(?!\[)", "os.PathLike[str]", sig)
+
+
 def fmt_func(name: str, obj) -> str:
     doc = getattr(obj, "__doc__", None)
     parsed = parse_sig(doc)
     if parsed:
         params, ret = parsed
+        params = _fix_pathlike(params)
+        ret = _fix_pathlike(ret)
         return f"def {name}({params}) -> {ret}: ..."
     return f"def {name}(*args, **kwargs): ..."
 
@@ -88,6 +95,8 @@ def collect_methods(cls) -> list[str]:
             parsed = parse_sig(doc)
             if parsed:
                 params, ret = parsed
+                params = _fix_pathlike(params)
+                ret = _fix_pathlike(ret)
                 lines.append(f"    def {name}(self, {params}) -> {ret}: ..."
                              if params
                              else f"    def {name}(self) -> {ret}: ...")
@@ -104,10 +113,35 @@ def collect_methods(cls) -> list[str]:
     return lines
 
 
+def _collect_all_sigs(module, funcs, classes) -> list[str]:
+    """Gather all parsed signature strings for import detection."""
+    sigs: list[str] = []
+    for _, obj in funcs:
+        parsed = parse_sig(getattr(obj, "__doc__", None))
+        if parsed:
+            sigs.append(parsed[0])
+            sigs.append(parsed[1])
+    for _, cls in classes:
+        cls_doc = getattr(cls, "__doc__", None)
+        parsed = parse_sig(cls_doc)
+        if parsed:
+            sigs.append(parsed[0])
+        for mname in vars(cls):
+            mobj = vars(cls).get(mname)
+            if mobj is None:
+                continue
+            parsed = parse_sig(getattr(mobj, "__doc__", None))
+            if parsed:
+                sigs.append(parsed[0])
+                sigs.append(parsed[1])
+    return sigs
+
+
 def generate_for_module(module) -> str:
     """Generate stub content for a single C extension module."""
     out: list[str] = []
     needs_self = False
+    needs_os = False
 
     funcs = []
     constants = []
@@ -133,8 +167,16 @@ def generate_for_module(module) -> str:
         if needs_self:
             break
 
+    # Check if we need os import (for os.PathLike in signatures)
+    all_sigs = _collect_all_sigs(module, funcs, classes)
+    if any("os.PathLike" in s for s in all_sigs):
+        needs_os = True
+
+    if needs_os:
+        out.append("import os")
     if needs_self:
         out.append("from typing import Self")
+    if needs_os or needs_self:
         out.append("")
 
     # Constants
@@ -167,6 +209,7 @@ def generate_for_module(module) -> str:
             init_parsed = parse_sig(cls_doc)
             if init_parsed:
                 params, _ = init_parsed
+                params = _fix_pathlike(params)
                 if params:
                     init_line = (
                         f"    def __init__(self, {params}) -> None: ..."
