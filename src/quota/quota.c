@@ -667,13 +667,16 @@ error:
 
 PyDoc_STRVAR(qgroupid_doc,
 "qgroupid(level: int, id: int) -> int\n"
-"qgroupid(s: str) -> int\n\n"
-"Build a raw qgroup ID from *level* and *id*, or parse a\n"
-"``\"level/id\"`` string (the format used by ``btrfs qgroup show``).\n\n"
+"qgroupid(s: str) -> int\n"
+"qgroupid(qgroupid: int) -> int\n\n"
+"Build a raw qgroup ID from *level* and *id*, parse a\n"
+"``\"level/id\"`` string (the format used by ``btrfs qgroup show``),\n"
+"or pass through a raw integer unchanged.\n\n"
 "The returned value is ``(level << 48) | id`` and can be passed\n"
 "directly to :func:`qgroup_create`, :func:`qgroup_assign`,\n"
 ":func:`qgroup_limit`, etc.\n\n"
-"Raises :exc:`ValueError` on malformed input.\n\n"
+"Raises :exc:`ValueError` on malformed input or if *level* exceeds\n"
+"16 bits (0..65535) or *id* exceeds 48 bits.\n\n"
 "Example::\n\n"
 "    >>> from pybtrfs import qgroupid\n"
 "    >>> qgroupid(1, 256)\n"
@@ -681,6 +684,8 @@ PyDoc_STRVAR(qgroupid_doc,
 "    >>> qgroupid('1/256')\n"
 "    281474976711040\n"
 "    >>> qgroupid('0/5')\n"
+"    5\n"
+"    >>> qgroupid(5)  # int passthrough\n"
 "    5\n");
 
 static PyObject *
@@ -692,6 +697,17 @@ pybtrfs_qgroupid(PyObject *self, PyObject *args)
         unsigned long long level, id;
         if (!PyArg_ParseTuple(args, "KK:qgroupid", &level, &id))
             return NULL;
+        if (level > 0xFFFF) {
+            PyErr_Format(PyExc_ValueError,
+                         "level must fit in 16 bits (0..65535), got %llu",
+                         level);
+            return NULL;
+        }
+        if (id > ((1ULL << 48) - 1)) {
+            PyErr_Format(PyExc_ValueError,
+                         "id must fit in 48 bits, got %llu", id);
+            return NULL;
+        }
         return PyLong_FromUnsignedLongLong((level << 48) | id);
     }
 
@@ -727,6 +743,18 @@ pybtrfs_qgroupid(PyObject *self, PyObject *args)
         if (*end != '\0') {
             PyErr_Format(PyExc_ValueError,
                          "invalid id in '%s'", s);
+            return NULL;
+        }
+
+        if (level > 0xFFFF) {
+            PyErr_Format(PyExc_ValueError,
+                         "level must fit in 16 bits (0..65535), got %llu",
+                         level);
+            return NULL;
+        }
+        if (id > ((1ULL << 48) - 1)) {
+            PyErr_Format(PyExc_ValueError,
+                         "id must fit in 48 bits, got %llu", id);
             return NULL;
         }
 

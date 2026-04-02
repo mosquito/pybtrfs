@@ -79,6 +79,29 @@ class TestQGroupID:
         with pytest.raises(TypeError):
             qgroupid()
 
+    def test_level_overflow_two_args(self):
+        with pytest.raises(ValueError, match="level must fit in 16 bits"):
+            qgroupid(0x10000, 0)
+
+    def test_id_overflow_two_args(self):
+        with pytest.raises(ValueError, match="id must fit in 48 bits"):
+            qgroupid(0, 1 << 48)
+
+    def test_level_overflow_string(self):
+        with pytest.raises(ValueError, match="level must fit in 16 bits"):
+            qgroupid("65536/0")
+
+    def test_id_overflow_string(self):
+        with pytest.raises(ValueError, match="id must fit in 48 bits"):
+            qgroupid("0/281474976710656")
+
+    def test_max_valid_level(self):
+        assert qgroupid(0xFFFF, 0) == 0xFFFF << 48
+
+    def test_max_valid_id(self):
+        max_id = (1 << 48) - 1
+        assert qgroupid(0, max_id) == max_id
+
 
 class TestQGroupStr:
     def test_level_zero(self):

@@ -78,6 +78,7 @@ PyDoc_STRVAR(QgroupInherit_get_groups_doc,
 "Returns the raw uint64 qgroup IDs previously added with\n"
 ":meth:`add_group`.\n\n"
 "Example::\n\n"
+"    >>> import pybtrfs\n"
 "    >>> qg = pybtrfs.QgroupInherit()\n"
 "    >>> qg.get_groups()\n"
 "    []\n"

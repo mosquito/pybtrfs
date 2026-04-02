@@ -181,6 +181,7 @@ PyTypeObject SubvolumeIteratorType = {
                     "info : bool\n"
                     "    If True, yield SubvolumeInfo objects instead of numeric IDs.\n\n"
                     "Example::\n\n"
+                    "    >>> import pybtrfs\n"
                     "    >>> with pybtrfs.SubvolumeIterator('/mnt/btrfs') as it:\n"
                     "    ...     for path, subvol_id in it:\n"
                     "    ...         print(f'{path} -> {subvol_id}')\n"

@@ -125,6 +125,7 @@ PyTypeObject SubvolumeInfoType = {
                     "rtime : float\n"
                     "    Receive time (Unix timestamp).\n\n"
                     "Example::\n\n"
+                    "    >>> import pybtrfs\n"
                     "    >>> info = pybtrfs.subvolume_info('/mnt/btrfs/my_subvol')\n"
                     "    >>> info.id\n"
                     "    256\n"
