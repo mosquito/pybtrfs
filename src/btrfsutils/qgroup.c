@@ -60,11 +60,36 @@ QgroupInherit_get_groups(QgroupInheritObject *self, PyObject *Py_UNUSED(a))
     return list;
 }
 
+PyDoc_STRVAR(QgroupInherit_add_group_doc,
+"add_group(qgroupid: int) -> None\n\n"
+"Add a qgroup ID to the inheritance list.\n\n"
+"The new subvolume will be automatically assigned to the specified\n"
+"qgroup when created with this :class:`QgroupInherit`.\n\n"
+"Example::\n\n"
+"    >>> from pybtrfs import qgroupid, QgroupInherit\n"
+"    >>> qg = QgroupInherit()\n"
+"    >>> qg.add_group(qgroupid(1, 1))\n"
+"    >>> qg.get_groups()\n"
+"    [281474976710657]\n");
+
+PyDoc_STRVAR(QgroupInherit_get_groups_doc,
+"get_groups() -> list[int]\n\n"
+"Get the list of qgroup IDs to inherit from.\n\n"
+"Returns the raw uint64 qgroup IDs previously added with\n"
+":meth:`add_group`.\n\n"
+"Example::\n\n"
+"    >>> qg = pybtrfs.QgroupInherit()\n"
+"    >>> qg.get_groups()\n"
+"    []\n"
+"    >>> qg.add_group(0)\n"
+"    >>> qg.get_groups()\n"
+"    [0]\n");
+
 static PyMethodDef QgroupInherit_methods[] = {
     {"add_group",  (PyCFunction)QgroupInherit_add_group,  METH_VARARGS,
-     "add_group(qgroupid: int) -> None\n\nAdd a qgroup to inherit from."},
+     QgroupInherit_add_group_doc},
     {"get_groups", (PyCFunction)QgroupInherit_get_groups, METH_NOARGS,
-     "get_groups() -> list[int]\n\nGet the list of qgroup IDs to inherit from."},
+     QgroupInherit_get_groups_doc},
     {NULL}
 };
 
@@ -74,7 +99,16 @@ PyTypeObject QgroupInheritType = {
     .tp_basicsize = sizeof(QgroupInheritObject),
     .tp_dealloc   = (destructor)QgroupInherit_dealloc,
     .tp_flags     = Py_TPFLAGS_DEFAULT,
-    .tp_doc       = "QgroupInherit()\n\nQgroup inheritance specifier.",
+    .tp_doc       = "QgroupInherit()\n\n"
+                    "Qgroup inheritance specifier for subvolume creation.\n\n"
+                    "Build a list of qgroups that a new subvolume should inherit\n"
+                    "from, then pass the object to :func:`create_subvolume` or\n"
+                    ":func:`create_snapshot`.\n\n"
+                    "Example::\n\n"
+                    "    >>> from pybtrfs import qgroupid, QgroupInherit, create_subvolume\n"
+                    "    >>> qg = QgroupInherit()\n"
+                    "    >>> qg.add_group(qgroupid(1, 1))\n"
+                    "    >>> create_subvolume('/mnt/btrfs/vol', qgroup_inherit=qg)\n",
     .tp_methods   = QgroupInherit_methods,
     .tp_init      = (initproc)QgroupInherit_init,
     .tp_new       = PyType_GenericNew,

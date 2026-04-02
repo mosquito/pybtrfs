@@ -4,6 +4,8 @@
 #include <sys/ioctl.h>
 #include <endian.h>
 
+#include <string.h>
+
 #include "kernel-shared/uapi/btrfs.h"
 #include "kernel-shared/uapi/btrfs_tree.h"
 
@@ -23,7 +25,10 @@ open_path(const char *path)
 PyDoc_STRVAR(quota_enable_doc,
 "quota_enable(path: str) -> None\n\n"
 "Enable btrfs quotas on the filesystem at *path*.\n\n"
-"Calls BTRFS_IOC_QUOTA_CTL with BTRFS_QUOTA_CTL_ENABLE.");
+"Calls BTRFS_IOC_QUOTA_CTL with BTRFS_QUOTA_CTL_ENABLE.\n\n"
+"Example::\n\n"
+"    >>> pybtrfs.quota_enable('/mnt/btrfs')\n"
+"    >>> pybtrfs.quota_rescan_wait('/mnt/btrfs')  # wait for initial rescan\n");
 
 static PyObject *
 pybtrfs_quota_enable(PyObject *self, PyObject *args)
@@ -57,7 +62,11 @@ pybtrfs_quota_enable(PyObject *self, PyObject *args)
 PyDoc_STRVAR(quota_enable_simple_doc,
 "quota_enable_simple(path: str) -> None\n\n"
 "Enable simple quotas (squota) on the filesystem at *path*.\n\n"
-"Calls BTRFS_IOC_QUOTA_CTL with BTRFS_QUOTA_CTL_ENABLE_SIMPLE_QUOTA.");
+"Simple quotas have lower overhead than full quotas and do not require\n"
+"a rescan. Available since Linux 6.7.\n\n"
+"Calls BTRFS_IOC_QUOTA_CTL with BTRFS_QUOTA_CTL_ENABLE_SIMPLE_QUOTA.\n\n"
+"Example::\n\n"
+"    >>> pybtrfs.quota_enable_simple('/mnt/btrfs')\n");
 
 static PyObject *
 pybtrfs_quota_enable_simple(PyObject *self, PyObject *args)
@@ -91,7 +100,9 @@ pybtrfs_quota_enable_simple(PyObject *self, PyObject *args)
 PyDoc_STRVAR(quota_disable_doc,
 "quota_disable(path: str) -> None\n\n"
 "Disable btrfs quotas on the filesystem at *path*.\n\n"
-"Calls BTRFS_IOC_QUOTA_CTL with BTRFS_QUOTA_CTL_DISABLE.");
+"Calls BTRFS_IOC_QUOTA_CTL with BTRFS_QUOTA_CTL_DISABLE.\n\n"
+"Example::\n\n"
+"    >>> pybtrfs.quota_disable('/mnt/btrfs')\n");
 
 static PyObject *
 pybtrfs_quota_disable(PyObject *self, PyObject *args)
@@ -125,7 +136,12 @@ pybtrfs_quota_disable(PyObject *self, PyObject *args)
 PyDoc_STRVAR(quota_rescan_doc,
 "quota_rescan(path: str) -> None\n\n"
 "Start a quota rescan on the filesystem at *path*.\n\n"
-"Calls BTRFS_IOC_QUOTA_RESCAN.");
+"A rescan recalculates all qgroup counters by walking the extent tree.\n"
+"Use :func:`quota_rescan_wait` to block until the rescan completes.\n\n"
+"Calls BTRFS_IOC_QUOTA_RESCAN.\n\n"
+"Example::\n\n"
+"    >>> pybtrfs.quota_rescan('/mnt/btrfs')\n"
+"    >>> pybtrfs.quota_rescan_wait('/mnt/btrfs')\n");
 
 static PyObject *
 pybtrfs_quota_rescan(PyObject *self, PyObject *args)
@@ -158,7 +174,12 @@ pybtrfs_quota_rescan(PyObject *self, PyObject *args)
 PyDoc_STRVAR(quota_rescan_status_doc,
 "quota_rescan_status(path: str) -> dict\n\n"
 "Return the current quota rescan status as ``{\"flags\": int, \"progress\": int}``.\n\n"
-"Calls BTRFS_IOC_QUOTA_RESCAN_STATUS.");
+"The *flags* field is non-zero while a rescan is in progress.\n"
+"The *progress* field indicates how far the rescan has advanced.\n\n"
+"Calls BTRFS_IOC_QUOTA_RESCAN_STATUS.\n\n"
+"Example::\n\n"
+"    >>> pybtrfs.quota_rescan_status('/mnt/btrfs')\n"
+"    {'flags': 0, 'progress': 0}\n");
 
 static PyObject *
 pybtrfs_quota_rescan_status(PyObject *self, PyObject *args)
@@ -193,7 +214,11 @@ pybtrfs_quota_rescan_status(PyObject *self, PyObject *args)
 PyDoc_STRVAR(quota_rescan_wait_doc,
 "quota_rescan_wait(path: str) -> None\n\n"
 "Block until the current quota rescan completes.\n\n"
-"Calls BTRFS_IOC_QUOTA_RESCAN_WAIT (releases the GIL).");
+"Releases the GIL while waiting so other Python threads can run.\n\n"
+"Calls BTRFS_IOC_QUOTA_RESCAN_WAIT.\n\n"
+"Example::\n\n"
+"    >>> pybtrfs.quota_rescan('/mnt/btrfs')\n"
+"    >>> pybtrfs.quota_rescan_wait('/mnt/btrfs')  # blocks until done\n");
 
 static PyObject *
 pybtrfs_quota_rescan_wait(PyObject *self, PyObject *args)
@@ -222,8 +247,14 @@ pybtrfs_quota_rescan_wait(PyObject *self, PyObject *args)
 
 PyDoc_STRVAR(qgroup_create_doc,
 "qgroup_create(path: str, qgroupid: int) -> None\n\n"
-"Create a new qgroup.\n\n"
-"Calls BTRFS_IOC_QGROUP_CREATE with create=1.");
+"Create a new qgroup with the given *qgroupid*.\n\n"
+"The qgroupid is a 64-bit value encoding ``(level << 48) | id``.\n"
+"Level-0 qgroups are created automatically for each subvolume;\n"
+"use this for higher-level qgroups.\n\n"
+"Calls BTRFS_IOC_QGROUP_CREATE with create=1.\n\n"
+"Example::\n\n"
+"    >>> from pybtrfs import qgroupid, qgroup_create\n"
+"    >>> qgroup_create('/mnt/btrfs', qgroupid(1, 100))\n");
 
 static PyObject *
 pybtrfs_qgroup_create(PyObject *self, PyObject *args)
@@ -259,7 +290,12 @@ pybtrfs_qgroup_create(PyObject *self, PyObject *args)
 PyDoc_STRVAR(qgroup_destroy_doc,
 "qgroup_destroy(path: str, qgroupid: int) -> None\n\n"
 "Destroy an existing qgroup.\n\n"
-"Calls BTRFS_IOC_QGROUP_CREATE with create=0.");
+"The qgroup must have no child assignments. Raises ``OSError``\n"
+"if the qgroup does not exist.\n\n"
+"Calls BTRFS_IOC_QGROUP_CREATE with create=0.\n\n"
+"Example::\n\n"
+"    >>> from pybtrfs import qgroupid, qgroup_destroy\n"
+"    >>> qgroup_destroy('/mnt/btrfs', qgroupid(1, 100))\n");
 
 static PyObject *
 pybtrfs_qgroup_destroy(PyObject *self, PyObject *args)
@@ -295,7 +331,15 @@ pybtrfs_qgroup_destroy(PyObject *self, PyObject *args)
 PyDoc_STRVAR(qgroup_assign_doc,
 "qgroup_assign(path: str, src: int, dst: int) -> None\n\n"
 "Assign qgroup *src* as a child of qgroup *dst*.\n\n"
-"Calls BTRFS_IOC_QGROUP_ASSIGN with assign=1.");
+"This makes *dst* a parent qgroup that tracks the combined usage\n"
+"of its children. Typically *src* is a level-0 qgroup (subvolume)\n"
+"and *dst* is a higher-level qgroup.\n\n"
+"Calls BTRFS_IOC_QGROUP_ASSIGN with assign=1.\n\n"
+"Example::\n\n"
+"    >>> from pybtrfs import qgroupid, qgroup_assign\n"
+"    >>> parent = qgroupid(1, 1)    # qgroup 1/1\n"
+"    >>> child = qgroupid(0, 256)   # qgroup 0/256 (subvolume)\n"
+"    >>> qgroup_assign('/mnt/btrfs', child, parent)\n");
 
 static PyObject *
 pybtrfs_qgroup_assign(PyObject *self, PyObject *args)
@@ -332,7 +376,11 @@ pybtrfs_qgroup_assign(PyObject *self, PyObject *args)
 PyDoc_STRVAR(qgroup_remove_doc,
 "qgroup_remove(path: str, src: int, dst: int) -> None\n\n"
 "Remove qgroup *src* from parent qgroup *dst*.\n\n"
-"Calls BTRFS_IOC_QGROUP_ASSIGN with assign=0.");
+"Reverses a previous :func:`qgroup_assign` call.\n\n"
+"Calls BTRFS_IOC_QGROUP_ASSIGN with assign=0.\n\n"
+"Example::\n\n"
+"    >>> from pybtrfs import qgroupid, qgroup_remove\n"
+"    >>> qgroup_remove('/mnt/btrfs', qgroupid(0, 256), qgroupid(1, 1))\n");
 
 static PyObject *
 pybtrfs_qgroup_remove(PyObject *self, PyObject *args)
@@ -368,8 +416,14 @@ pybtrfs_qgroup_remove(PyObject *self, PyObject *args)
 
 PyDoc_STRVAR(qgroup_limit_doc,
 "qgroup_limit(path: str, qgroupid: int, max_rfer: int = 0, max_excl: int = 0) -> None\n\n"
-"Set quota limits for *qgroupid*. A value of 0 clears the limit.\n\n"
-"Calls BTRFS_IOC_QGROUP_LIMIT.");
+"Set quota limits for *qgroupid*.\n\n"
+"*max_rfer* limits the referenced bytes (total data, including shared).\n"
+"*max_excl* limits the exclusive bytes (data unique to this qgroup).\n"
+"A value of 0 clears the corresponding limit.\n\n"
+"Calls BTRFS_IOC_QGROUP_LIMIT.\n\n"
+"Example::\n\n"
+"    >>> from pybtrfs import qgroupid, qgroup_limit\n"
+"    >>> qgroup_limit('/mnt/btrfs', qgroupid(0, 256), max_rfer=1024**3)\n");
 
 static PyObject *
 pybtrfs_qgroup_limit(PyObject *self, PyObject *args, PyObject *kwargs)
@@ -420,9 +474,21 @@ pybtrfs_qgroup_limit(PyObject *self, PyObject *args, PyObject *kwargs)
 PyDoc_STRVAR(qgroup_info_doc,
 "qgroup_info(path: str) -> list[dict]\n\n"
 "Return a list of dicts describing every qgroup on the filesystem.\n\n"
-"Each dict contains: qgroupid, rfer, excl, rfer_cmpr, excl_cmpr,\n"
-"max_rfer, max_excl.\n\n"
-"Uses BTRFS_IOC_TREE_SEARCH on the quota tree.");
+"Each dict contains:\n\n"
+"- **qgroupid** (int): raw qgroup ID (``level << 48 | id``).\n"
+"- **rfer** (int): referenced bytes.\n"
+"- **excl** (int): exclusive bytes.\n"
+"- **rfer_cmpr** (int): referenced compressed bytes.\n"
+"- **excl_cmpr** (int): exclusive compressed bytes.\n"
+"- **max_rfer** (int): max referenced limit (0 = unlimited).\n"
+"- **max_excl** (int): max exclusive limit (0 = unlimited).\n\n"
+"Uses BTRFS_IOC_TREE_SEARCH on the quota tree.\n\n"
+"Example::\n\n"
+"    >>> from pybtrfs import qgroupstr, qgroup_info\n"
+"    >>> for qg in qgroup_info('/mnt/btrfs'):\n"
+"    ...     gid = qgroupstr(qg['qgroupid'])\n"
+"    ...     print(f\"{gid}: rfer={qg['rfer']}, excl={qg['excl']}\")\n"
+"    0/5: rfer=16384, excl=16384\n");
 
 static PyObject *
 pybtrfs_qgroup_info(PyObject *self, PyObject *args)
@@ -597,6 +663,109 @@ error:
     return NULL;
 }
 
+/* -- qgroupid(level, id) / qgroupid("level/id") ------------------- */
+
+PyDoc_STRVAR(qgroupid_doc,
+"qgroupid(level: int, id: int) -> int\n"
+"qgroupid(s: str) -> int\n\n"
+"Build a raw qgroup ID from *level* and *id*, or parse a\n"
+"``\"level/id\"`` string (the format used by ``btrfs qgroup show``).\n\n"
+"The returned value is ``(level << 48) | id`` and can be passed\n"
+"directly to :func:`qgroup_create`, :func:`qgroup_assign`,\n"
+":func:`qgroup_limit`, etc.\n\n"
+"Raises :exc:`ValueError` on malformed input.\n\n"
+"Example::\n\n"
+"    >>> from pybtrfs import qgroupid\n"
+"    >>> qgroupid(1, 256)\n"
+"    281474976711040\n"
+"    >>> qgroupid('1/256')\n"
+"    281474976711040\n"
+"    >>> qgroupid('0/5')\n"
+"    5\n");
+
+static PyObject *
+pybtrfs_qgroupid(PyObject *self, PyObject *args)
+{
+    Py_ssize_t nargs = PyTuple_GET_SIZE(args);
+
+    if (nargs == 2) {
+        unsigned long long level, id;
+        if (!PyArg_ParseTuple(args, "KK:qgroupid", &level, &id))
+            return NULL;
+        return PyLong_FromUnsignedLongLong((level << 48) | id);
+    }
+
+    if (nargs != 1) {
+        PyErr_SetString(PyExc_TypeError,
+                        "qgroupid() takes 1 or 2 arguments");
+        return NULL;
+    }
+
+    PyObject *arg = PyTuple_GET_ITEM(args, 0);
+
+    if (PyUnicode_Check(arg)) {
+        const char *s = PyUnicode_AsUTF8(arg);
+        if (!s)
+            return NULL;
+
+        const char *slash = strchr(s, '/');
+        if (!slash) {
+            PyErr_Format(PyExc_ValueError,
+                         "expected 'level/id' format, got '%s'", s);
+            return NULL;
+        }
+
+        char *end;
+        unsigned long long level = strtoull(s, &end, 10);
+        if (end != slash) {
+            PyErr_Format(PyExc_ValueError,
+                         "invalid level in '%s'", s);
+            return NULL;
+        }
+
+        unsigned long long id = strtoull(slash + 1, &end, 10);
+        if (*end != '\0') {
+            PyErr_Format(PyExc_ValueError,
+                         "invalid id in '%s'", s);
+            return NULL;
+        }
+
+        return PyLong_FromUnsignedLongLong((level << 48) | id);
+    }
+
+    /* int passthrough */
+    unsigned long long val;
+    if (!PyArg_ParseTuple(args, "K:qgroupid", &val))
+        return NULL;
+    return PyLong_FromUnsignedLongLong(val);
+}
+
+/* -- qgroupstr(qgroupid) ------------------------------------------ */
+
+PyDoc_STRVAR(qgroupstr_doc,
+"qgroupstr(qgroupid: int) -> str\n\n"
+"Convert a raw qgroup ID to the ``\"level/id\"`` string format\n"
+"used by ``btrfs qgroup show``.\n\n"
+"This is the inverse of :func:`qgroupid`.\n\n"
+"Example::\n\n"
+"    >>> from pybtrfs import qgroupid, qgroupstr\n"
+"    >>> qgroupstr(qgroupid(1, 256))\n"
+"    '1/256'\n"
+"    >>> qgroupstr(5)\n"
+"    '0/5'\n");
+
+static PyObject *
+pybtrfs_qgroupstr(PyObject *self, PyObject *args)
+{
+    unsigned long long val;
+    if (!PyArg_ParseTuple(args, "K:qgroupstr", &val))
+        return NULL;
+
+    unsigned long long level = val >> 48;
+    unsigned long long id = val & ((1ULL << 48) - 1);
+    return PyUnicode_FromFormat("%llu/%llu", level, id);
+}
+
 /* -- method table -------------------------------------------------- */
 
 static PyMethodDef quota_methods[] = {
@@ -624,6 +793,10 @@ static PyMethodDef quota_methods[] = {
      METH_VARARGS | METH_KEYWORDS, qgroup_limit_doc},
     {"qgroup_info",         (PyCFunction)pybtrfs_qgroup_info,
      METH_VARARGS, qgroup_info_doc},
+    {"qgroupid",            (PyCFunction)pybtrfs_qgroupid,
+     METH_VARARGS, qgroupid_doc},
+    {"qgroupstr",           (PyCFunction)pybtrfs_qgroupstr,
+     METH_VARARGS, qgroupstr_doc},
     {NULL, NULL, 0, NULL},
 };
 

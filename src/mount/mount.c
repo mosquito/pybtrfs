@@ -7,7 +7,21 @@
 PyDoc_STRVAR(pybtrfs_mount_doc,
 "mount(source: str, target: str, fstype: str = \"btrfs\", flags: int = 0, data: str = \"\") -> None\n\n"
 "Mount a filesystem.\n\n"
-"Calls mount(2). Raises OSError on failure.");
+"Wraps the ``mount(2)`` system call. Defaults to ``fstype='btrfs'``.\n"
+"Use the *flags* parameter for mount options like ``MS_RDONLY`` and\n"
+"*data* for filesystem-specific options (e.g. ``'compress=zstd'``).\n\n"
+"Raises ``OSError`` on failure.\n\n"
+"Example::\n\n"
+"    >>> import pybtrfs\n"
+"    >>> pybtrfs.mount('/dev/sda1', '/mnt/btrfs')\n"
+"    >>> pybtrfs.mount(\n"
+"    ...     '/dev/sda1', '/mnt/btrfs',\n"
+"    ...     data='compress=zstd,subvol=@home'\n"
+"    ... )\n"
+"    >>> pybtrfs.mount(\n"
+"    ...     '/dev/sda1', '/mnt/ro',\n"
+"    ...     flags=pybtrfs.MountFlags.RDONLY\n"
+"    ... )\n");
 
 static PyObject *
 pybtrfs_mount(PyObject *self, PyObject *args, PyObject *kwargs)
@@ -40,7 +54,12 @@ pybtrfs_mount(PyObject *self, PyObject *args, PyObject *kwargs)
 PyDoc_STRVAR(pybtrfs_umount_doc,
 "umount(target: str, flags: int = 0) -> None\n\n"
 "Unmount a filesystem.\n\n"
-"Calls umount2(2). Raises OSError on failure.");
+"Wraps the ``umount2(2)`` system call. Use *flags* for options like\n"
+"``MNT_FORCE`` or ``MNT_DETACH``.\n\n"
+"Raises ``OSError`` on failure.\n\n"
+"Example::\n\n"
+"    >>> pybtrfs.umount('/mnt/btrfs')\n"
+"    >>> pybtrfs.umount('/mnt/btrfs', flags=pybtrfs.UmountFlags.DETACH)\n");
 
 static PyObject *
 pybtrfs_umount(PyObject *self, PyObject *args, PyObject *kwargs)

@@ -60,6 +60,8 @@ from .quota import (
     qgroup_remove,
     qgroup_limit,
     qgroup_info,
+    qgroupid,
+    qgroupstr,
 )
 from .quota import (
     BTRFS_QUOTA_CTL_ENABLE,
@@ -258,6 +260,8 @@ __all__ = [
     "qgroup_remove",
     "qgroup_limit",
     "qgroup_info",
+    "qgroupid",
+    "qgroupstr",
     # enum classes
     "CreateSnapshotFlags",
     "DeleteSubvolumeFlags",
