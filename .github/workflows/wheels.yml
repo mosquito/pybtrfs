@@ -46,6 +46,11 @@ jobs:
           CIBW_MANYLINUX_AARCH64_IMAGE: ${{ matrix.image }}
           CIBW_MUSLLINUX_X86_64_IMAGE: ${{ matrix.image }}
           CIBW_MUSLLINUX_AARCH64_IMAGE: ${{ matrix.image }}
+          CIBW_BEFORE_BUILD: >-
+            pip install setuptools &&
+            cd {project} &&
+            python setup.py build_ext --inplace &&
+            python gen_stubs.py
           CIBW_BUILD_VERBOSITY: 1
         with:
           output-dir: dist
