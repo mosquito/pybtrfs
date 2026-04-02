@@ -198,7 +198,7 @@ def mkfs(
     uuid: str = "",
     force: bool = False,
     no_discard: bool = False,
-) -> None:
+) -> dict:
     """Create a Btrfs filesystem on the specified devices."""
     return _mkfs(
         *devices,
