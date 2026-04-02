@@ -1,3 +1,6 @@
+import os
+import pathlib
+
 import pytest
 
 import pybtrfs
@@ -136,3 +139,101 @@ def test_qgroup_inherit_add():
     qg.add_group(0)
     qg.add_group(1)
     assert qg.get_groups() == [0, 1]
+
+
+class TestPathOrFdArgParsing:
+    """Test that functions accept str, int (fd), and PathLike arguments.
+
+    These tests verify argument parsing at the C boundary. They do NOT
+    require a real btrfs filesystem — they just confirm that the right
+    type dispatch happens (and that bad types are rejected).
+    """
+
+    # -- type rejection tests (work everywhere) -----------------------
+
+    @pytest.mark.parametrize("func_name", [
+        "sync", "start_sync", "wait_sync",
+        "is_subvolume", "subvolume_id", "subvolume_path",
+        "subvolume_info", "get_subvolume_read_only",
+        "set_subvolume_read_only", "get_default_subvolume",
+        "set_default_subvolume", "create_subvolume",
+        "delete_subvolume", "deleted_subvolumes",
+    ])
+    def test_btrfsutils_rejects_bad_type(self, func_name):
+        func = getattr(pybtrfs, func_name)
+        with pytest.raises(TypeError):
+            func(3.14)
+
+    @pytest.mark.parametrize("func_name", [
+        "sync", "start_sync", "wait_sync",
+        "is_subvolume", "subvolume_id", "subvolume_path",
+        "subvolume_info", "get_subvolume_read_only",
+        "set_subvolume_read_only", "get_default_subvolume",
+        "set_default_subvolume", "create_subvolume",
+        "delete_subvolume", "deleted_subvolumes",
+    ])
+    def test_btrfsutils_rejects_bytes(self, func_name):
+        func = getattr(pybtrfs, func_name)
+        with pytest.raises(TypeError):
+            func(b"/mnt/btrfs")
+
+    @pytest.mark.parametrize("func_name", [
+        "quota_enable", "quota_enable_simple", "quota_disable",
+        "quota_rescan", "quota_rescan_status", "quota_rescan_wait",
+        "qgroup_info",
+    ])
+    def test_quota_rejects_bad_type(self, func_name):
+        func = getattr(pybtrfs, func_name)
+        with pytest.raises(TypeError):
+            func(3.14)
+
+    @pytest.mark.parametrize("func_name", [
+        "quota_enable", "quota_enable_simple", "quota_disable",
+        "quota_rescan", "quota_rescan_status", "quota_rescan_wait",
+        "qgroup_info",
+    ])
+    def test_quota_rejects_bytes(self, func_name):
+        func = getattr(pybtrfs, func_name)
+        with pytest.raises(TypeError):
+            func(b"/mnt/btrfs")
+
+    # -- PathLike acceptance (str path goes through PyOS_FSPath) ------
+
+    @pytest.mark.parametrize("func_name", [
+        "sync", "start_sync", "wait_sync",
+        "is_subvolume", "subvolume_id", "subvolume_path",
+        "subvolume_info", "get_subvolume_read_only",
+        "set_subvolume_read_only", "get_default_subvolume",
+        "set_default_subvolume", "create_subvolume",
+        "delete_subvolume", "deleted_subvolumes",
+    ])
+    def test_btrfsutils_accepts_pathlib(self, func_name):
+        """PathLike is parsed without TypeError (fails later on non-btrfs)."""
+        func = getattr(pybtrfs, func_name)
+        p = pathlib.PurePosixPath("/nonexistent/btrfs/path")
+        with pytest.raises((OSError, pybtrfs.BtrfsUtilError)):
+            func(p)
+
+    # -- fd-specific create/delete validation -------------------------
+
+    def test_create_subvolume_fd_requires_name(self):
+        fd = os.open("/tmp", os.O_RDONLY)
+        try:
+            with pytest.raises(ValueError, match="name is required"):
+                pybtrfs.create_subvolume(fd)
+        finally:
+            os.close(fd)
+
+    def test_delete_subvolume_fd_requires_name(self):
+        fd = os.open("/tmp", os.O_RDONLY)
+        try:
+            with pytest.raises(ValueError, match="name is required"):
+                pybtrfs.delete_subvolume(fd)
+        finally:
+            os.close(fd)
+
+    # -- create_snapshot source accepts fd ----------------------------
+
+    def test_create_snapshot_rejects_bad_source_type(self):
+        with pytest.raises(TypeError):
+            pybtrfs.create_snapshot(3.14, "/tmp/snap")

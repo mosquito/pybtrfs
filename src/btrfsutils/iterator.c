@@ -20,13 +20,19 @@ SubvolumeIterator_init(SubvolumeIteratorObject *self,
                        PyObject *args, PyObject *kwds)
 {
     static char *kw[] = {"path", "top", "post_order", "info", NULL};
-    const char *path;
+    PyObject *path_or_fd;
     uint64_t top = 0;
     int post_order = 0, info = 0, flags = 0;
     enum btrfs_util_error err;
 
-    if (!PyArg_ParseTupleAndKeywords(args, kwds, "s|Kpp", kw,
-                                     &path, &top, &post_order, &info))
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "O|Kpp", kw,
+                                     &path_or_fd, &top, &post_order, &info))
+        return -1;
+
+    const char *path; int fd;
+    PyObject *path_obj;
+    int is_fd = parse_path_or_fd(path_or_fd, &path_obj, &path, &fd);
+    if (is_fd < 0)
         return -1;
 
     if (post_order)
@@ -35,9 +41,12 @@ SubvolumeIterator_init(SubvolumeIteratorObject *self,
     self->info_flag = info;
 
     Py_BEGIN_ALLOW_THREADS
-    err = btrfs_util_create_subvolume_iterator(path, top, flags, &self->iter);
+    err = is_fd
+        ? btrfs_util_create_subvolume_iterator_fd(fd, top, flags, &self->iter)
+        : btrfs_util_create_subvolume_iterator(path, top, flags, &self->iter);
     Py_END_ALLOW_THREADS
 
+    Py_XDECREF(path_obj);
     if (err) {
         set_error(err);
         return -1;
@@ -166,14 +175,16 @@ PyTypeObject SubvolumeIteratorType = {
     .tp_basicsize = sizeof(SubvolumeIteratorObject),
     .tp_dealloc   = (destructor)SubvolumeIterator_dealloc,
     .tp_flags     = Py_TPFLAGS_DEFAULT,
-    .tp_doc       = "SubvolumeIterator(path: str, top: int = 0, post_order: bool = False, info: bool = False)\n\n"
+    .tp_doc       = "SubvolumeIterator(path: str | int | os.PathLike, top: int = 0, "
+                    "post_order: bool = False, info: bool = False)\n\n"
                     "Iterator over Btrfs subvolumes.\n\n"
                     "Yields ``(path, id)`` tuples by default, or ``(path, SubvolumeInfo)``\n"
                     "tuples when *info* is ``True``. Supports the context-manager protocol.\n\n"
                     "Parameters\n"
                     "----------\n"
-                    "path : str\n"
-                    "    Path inside a Btrfs filesystem.\n"
+                    "path : str | int | os.PathLike\n"
+                    "    Path inside a Btrfs filesystem, a path-like object, or an open\n"
+                    "    file descriptor (int).\n"
                     "top : int\n"
                     "    Only list subvolumes beneath this subvolume ID (0 = all).\n"
                     "post_order : bool\n"
