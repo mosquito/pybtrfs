@@ -21,6 +21,7 @@ from pybtrfs import (
     qgroup_remove,
     qgroup_limit,
     qgroup_info,
+    qgroupid,
     QuotaCtl,
     QgroupStatusFlags,
     QgroupLimitFlags,
@@ -142,7 +143,7 @@ class TestQgroupInfo:
 class TestQgroupCreateDestroy:
     def test_create_and_destroy(self, quota_enabled):
         # level 1 qgroup: 1/100
-        qgid = (1 << 48) | 100
+        qgid = qgroupid(1, 100)
         qgroup_create(quota_enabled, qgid)
 
         # verify it appears in info
@@ -158,7 +159,7 @@ class TestQgroupCreateDestroy:
         assert qgid not in ids
 
     def test_destroy_nonexistent_raises(self, quota_enabled):
-        qgid = (1 << 48) | 9999
+        qgid = qgroupid(1, 9999)
         with pytest.raises(OSError):
             qgroup_destroy(quota_enabled, qgid)
 
@@ -166,7 +167,7 @@ class TestQgroupCreateDestroy:
 class TestQgroupAssignRemove:
     def test_assign_and_remove(self, quota_enabled):
         # create a parent qgroup 1/1
-        parent = (1 << 48) | 1
+        parent = qgroupid(1, 1)
         qgroup_create(quota_enabled, parent)
 
         # create a subvolume so we have a 0/X qgroup to assign

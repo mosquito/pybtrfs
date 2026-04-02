@@ -720,8 +720,23 @@ PyDoc_STRVAR(pybtrfs_mkfs_doc,
 "     mixed: bool = False, features: int = 0, csum_type: int = 0, uuid: str = \"\",\n"
 "     force: bool = False, no_discard: bool = False) -> dict\n\n"
 "Create a btrfs filesystem on one or more block devices.\n\n"
-"Returns a dict with keys 'uuid' (str) and 'num_bytes' (int).\n"
-"Raises OSError on failure.");
+"Returns a dict with keys ``'uuid'`` (str) and ``'num_bytes'`` (int).\n"
+"The *metadata_profile* defaults to ``-1`` (auto-select based on device\n"
+"count: DUP for single device, RAID1 for multiple).\n\n"
+"Raises ``OSError`` on failure.\n\n"
+"Example::\n\n"
+"    >>> import pybtrfs\n"
+"    >>> result = pybtrfs.mkfs('/dev/loop0', label='myfs', force=True)\n"
+"    >>> result['uuid']\n"
+"    '550e8400-e29b-41d4-a716-446655440000'\n"
+"    >>> result['num_bytes']\n"
+"    268435456\n\n"
+"    >>> # RAID1 across two devices\n"
+"    >>> pybtrfs.mkfs(\n"
+"    ...     '/dev/loop0', '/dev/loop1',\n"
+"    ...     label='raid',\n"
+"    ...     data_profile=pybtrfs.RaidProfile.RAID1,\n"
+"    ... )\n");
 
 static PyObject *
 pybtrfs_mkfs(PyObject *self, PyObject *args, PyObject *kwargs)

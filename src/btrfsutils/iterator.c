@@ -167,7 +167,26 @@ PyTypeObject SubvolumeIteratorType = {
     .tp_dealloc   = (destructor)SubvolumeIterator_dealloc,
     .tp_flags     = Py_TPFLAGS_DEFAULT,
     .tp_doc       = "SubvolumeIterator(path: str, top: int = 0, post_order: bool = False, info: bool = False)\n\n"
-                    "Iterator over Btrfs subvolumes.",
+                    "Iterator over Btrfs subvolumes.\n\n"
+                    "Yields ``(path, id)`` tuples by default, or ``(path, SubvolumeInfo)``\n"
+                    "tuples when *info* is ``True``. Supports the context-manager protocol.\n\n"
+                    "Parameters\n"
+                    "----------\n"
+                    "path : str\n"
+                    "    Path inside a Btrfs filesystem.\n"
+                    "top : int\n"
+                    "    Only list subvolumes beneath this subvolume ID (0 = all).\n"
+                    "post_order : bool\n"
+                    "    Yield children before parents.\n"
+                    "info : bool\n"
+                    "    If True, yield SubvolumeInfo objects instead of numeric IDs.\n\n"
+                    "Example::\n\n"
+                    "    >>> import pybtrfs\n"
+                    "    >>> with pybtrfs.SubvolumeIterator('/mnt/btrfs') as it:\n"
+                    "    ...     for path, subvol_id in it:\n"
+                    "    ...         print(f'{path} -> {subvol_id}')\n"
+                    "    my_subvol -> 256\n"
+                    "    snapshots/snap1 -> 257\n",
     .tp_iter      = PyObject_SelfIter,
     .tp_iternext  = (iternextfunc)SubvolumeIterator_next,
     .tp_methods   = SubvolumeIterator_methods,
