@@ -22,7 +22,7 @@ pybtrfs = Extension(
         "vendor/btrfs-progs/libbtrfsutil/subvolume.c",
         "vendor/btrfs-progs/libbtrfsutil/stubs.c",
     ],
-    include_dirs=["src/btrfsutils", "vendor/btrfs-progs/libbtrfsutil"],
+    include_dirs=["src", "src/btrfsutils", "vendor/btrfs-progs/libbtrfsutil"],
     define_macros=[("_GNU_SOURCE", "1")],
 )
 
@@ -35,7 +35,7 @@ mount_ext = Extension(
 quota_ext = Extension(
     "pybtrfs.quota",
     sources=["src/quota/quota.c"],
-    include_dirs=["vendor/btrfs-progs"],
+    include_dirs=["src", "vendor/btrfs-progs"],
     define_macros=[("_GNU_SOURCE", "1")],
 )
 

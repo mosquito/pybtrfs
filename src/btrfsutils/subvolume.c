@@ -400,12 +400,13 @@ mod_create_subvolume(PyObject *self, PyObject *args, PyObject *kwds)
 }
 
 PyDoc_STRVAR(create_snapshot_doc,
-"create_snapshot(source: str | int | os.PathLike, path: str, "
+"create_snapshot(source: str | int | os.PathLike, path: str | os.PathLike, "
 "recursive: bool = False, "
 "read_only: bool = False, qgroup_inherit: QgroupInherit | None = None) -> None\n\n"
 "Create a snapshot of the subvolume at *source*, placing it at *path*.\n\n"
 "*source* may be a filesystem path, a path-like object, or an open\n"
-"file descriptor (int). *path* is always a string destination path.\n\n"
+"file descriptor (int). *path* may be a filesystem path or a path-like\n"
+"object.\n\n"
 "Set *recursive* to ``True`` to also snapshot child subvolumes.\n"
 "Set *read_only* to ``True`` to make the snapshot read-only.\n\n"
 "Example::\n\n"

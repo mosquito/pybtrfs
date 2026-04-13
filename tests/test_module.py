@@ -211,7 +211,7 @@ class TestPathOrFdArgParsing:
         """PathLike is parsed without TypeError (fails later on non-btrfs)."""
         func = getattr(pybtrfs, func_name)
         p = pathlib.PurePosixPath("/nonexistent/btrfs/path")
-        with pytest.raises((OSError, pybtrfs.BtrfsUtilError)):
+        with pytest.raises(OSError):
             func(p)
 
     # -- fd-specific create/delete validation -------------------------
