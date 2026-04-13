@@ -1,6 +1,7 @@
 #define PY_SSIZE_T_CLEAN
 #include <Python.h>
 #include <fcntl.h>
+#include <limits.h>
 #include <sys/ioctl.h>
 #include <endian.h>
 
@@ -31,11 +32,18 @@ parse_path_or_fd(PyObject *arg, PyObject **path_obj,
                  const char **path, int *fd)
 {
     *path_obj = NULL;
-    if (PyLong_Check(arg)) {
+    if (PyLong_Check(arg) && !PyBool_Check(arg)) {
         *path = NULL;
-        *fd = (int)PyLong_AsLong(arg);
-        if (*fd < 0 && PyErr_Occurred())
+        int overflow;
+        long val = PyLong_AsLongAndOverflow(arg, &overflow);
+        if (overflow || val < 0 || val > INT_MAX) {
+            PyErr_SetString(PyExc_ValueError,
+                            "file descriptor out of range");
             return -1;
+        }
+        if (val == -1 && PyErr_Occurred())
+            return -1;
+        *fd = (int)val;
         return 1;
     }
     /* str / pathlib.Path / any os.PathLike */

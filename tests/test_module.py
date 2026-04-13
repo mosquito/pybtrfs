@@ -232,6 +232,43 @@ class TestPathOrFdArgParsing:
         finally:
             os.close(fd)
 
+    # -- bool rejection (bool is not a valid fd) -----------------------
+
+    @pytest.mark.parametrize("func_name", [
+        "sync", "start_sync", "wait_sync",
+        "is_subvolume", "subvolume_id", "subvolume_path",
+        "subvolume_info", "get_subvolume_read_only",
+        "set_subvolume_read_only", "get_default_subvolume",
+        "set_default_subvolume", "create_subvolume",
+        "delete_subvolume", "deleted_subvolumes",
+    ])
+    def test_btrfsutils_rejects_bool(self, func_name):
+        func = getattr(pybtrfs, func_name)
+        with pytest.raises(TypeError):
+            func(True)
+
+    @pytest.mark.parametrize("func_name", [
+        "quota_enable", "quota_enable_simple", "quota_disable",
+        "quota_rescan", "quota_rescan_status", "quota_rescan_wait",
+        "qgroup_info",
+    ])
+    def test_quota_rejects_bool(self, func_name):
+        func = getattr(pybtrfs, func_name)
+        with pytest.raises(TypeError):
+            func(True)
+
+    # -- negative fd rejection ----------------------------------------
+
+    def test_negative_fd_rejected(self):
+        with pytest.raises(ValueError, match="file descriptor out of range"):
+            pybtrfs.sync(-1)
+
+    # -- overflow fd rejection ----------------------------------------
+
+    def test_overflow_fd_rejected(self):
+        with pytest.raises(ValueError, match="file descriptor out of range"):
+            pybtrfs.sync(2**63)
+
     # -- create_snapshot source accepts fd ----------------------------
 
     def test_create_snapshot_rejects_bad_source_type(self):

@@ -328,8 +328,9 @@ mod_set_default_subvolume(PyObject *self, PyObject *args, PyObject *kwds)
 /* -- create / snapshot / delete -------------------------------------- */
 
 PyDoc_STRVAR(create_subvolume_doc,
-"create_subvolume(path: str | int | os.PathLike, name: str | None = None, "
-"qgroup_inherit: QgroupInherit | None = None) -> None\n\n"
+"create_subvolume(path: str | int | os.PathLike, "
+"qgroup_inherit: QgroupInherit | None = None, *, "
+"name: str | None = None) -> None\n\n"
 "Create a new subvolume.\n\n"
 "When *path* is a string or path-like object, a subvolume is created\n"
 "at that path (existing behavior). When *path* is a file descriptor\n"
@@ -339,20 +340,21 @@ PyDoc_STRVAR(create_subvolume_doc,
 "for the new subvolume.\n\n"
 "Example::\n\n"
 "    >>> pybtrfs.create_subvolume('/mnt/btrfs/new_subvol')\n"
-"    >>> pybtrfs.create_subvolume(parent_fd, 'new_subvol')\n");
+"    >>> pybtrfs.create_subvolume(parent_fd, name='new_subvol')\n");
 
 static PyObject *
 mod_create_subvolume(PyObject *self, PyObject *args, PyObject *kwds)
 {
-    static char *kw[] = {"path", "name", "qgroup_inherit", NULL};
+    static char *kw[] = {"path", "qgroup_inherit", "name", NULL};
     PyObject *path_or_fd;
     const char *name = NULL;
     QgroupInheritObject *qg_obj = NULL;
     struct btrfs_util_qgroup_inherit *qg = NULL;
 
-    if (!PyArg_ParseTupleAndKeywords(args, kwds, "O|zO!", kw,
-                                     &path_or_fd, &name,
-                                     &QgroupInheritType, &qg_obj))
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "O|O!$z", kw,
+                                     &path_or_fd,
+                                     &QgroupInheritType, &qg_obj,
+                                     &name))
         return NULL;
     if (qg_obj)
         qg = qg_obj->inherit;
@@ -446,8 +448,8 @@ mod_create_snapshot(PyObject *self, PyObject *args, PyObject *kwds)
 }
 
 PyDoc_STRVAR(delete_subvolume_doc,
-"delete_subvolume(path: str | int | os.PathLike, name: str | None = None, "
-"recursive: bool = False) -> None\n\n"
+"delete_subvolume(path: str | int | os.PathLike, "
+"recursive: bool = False, *, name: str | None = None) -> None\n\n"
 "Delete a subvolume or snapshot.\n\n"
 "When *path* is a string or path-like object, the subvolume at that\n"
 "path is deleted (existing behavior). When *path* is a file descriptor\n"
@@ -456,18 +458,18 @@ PyDoc_STRVAR(delete_subvolume_doc,
 "Set *recursive* to ``True`` to also delete child subvolumes.\n\n"
 "Example::\n\n"
 "    >>> pybtrfs.delete_subvolume('/mnt/btrfs/old_snap')\n"
-"    >>> pybtrfs.delete_subvolume(parent_fd, 'old_snap')\n");
+"    >>> pybtrfs.delete_subvolume(parent_fd, name='old_snap')\n");
 
 static PyObject *
 mod_delete_subvolume(PyObject *self, PyObject *args, PyObject *kwds)
 {
-    static char *kw[] = {"path", "name", "recursive", NULL};
+    static char *kw[] = {"path", "recursive", "name", NULL};
     PyObject *path_or_fd;
     const char *name = NULL;
     int recursive = 0, flags = 0;
 
-    if (!PyArg_ParseTupleAndKeywords(args, kwds, "O|zp", kw,
-                                     &path_or_fd, &name, &recursive))
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "O|p$z", kw,
+                                     &path_or_fd, &recursive, &name))
         return NULL;
 
     if (recursive)
