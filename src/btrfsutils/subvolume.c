@@ -347,15 +347,27 @@ mod_create_subvolume(PyObject *self, PyObject *args, PyObject *kwds)
 {
     static char *kw[] = {"path", "qgroup_inherit", "name", NULL};
     PyObject *path_or_fd;
-    const char *name = NULL;
+    PyObject *name_obj = Py_None;
     QgroupInheritObject *qg_obj = NULL;
     struct btrfs_util_qgroup_inherit *qg = NULL;
 
-    if (!PyArg_ParseTupleAndKeywords(args, kwds, "O|O!$z", kw,
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "O|O!$O", kw,
                                      &path_or_fd,
                                      &QgroupInheritType, &qg_obj,
-                                     &name))
+                                     &name_obj))
         return NULL;
+
+    const char *name = NULL;
+    if (name_obj != Py_None) {
+        if (!PyUnicode_Check(name_obj)) {
+            PyErr_SetString(PyExc_TypeError, "name must be str or None");
+            return NULL;
+        }
+        name = PyUnicode_AsUTF8(name_obj);
+        if (!name)
+            return NULL;
+    }
+
     if (qg_obj)
         qg = qg_obj->inherit;
 
@@ -406,16 +418,32 @@ mod_create_snapshot(PyObject *self, PyObject *args, PyObject *kwds)
     static char *kw[] = {"source", "path", "recursive", "read_only",
                          "qgroup_inherit", NULL};
     PyObject *source_or_fd;
-    const char *dest_path;
+    PyObject *dest_arg;
     int recursive = 0, read_only = 0, flags = 0;
     QgroupInheritObject *qg_obj = NULL;
     struct btrfs_util_qgroup_inherit *qg = NULL;
 
-    if (!PyArg_ParseTupleAndKeywords(args, kwds, "Os|ppO!", kw,
-                                     &source_or_fd, &dest_path,
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "OO|ppO!", kw,
+                                     &source_or_fd, &dest_arg,
                                      &recursive, &read_only,
                                      &QgroupInheritType, &qg_obj))
         return NULL;
+
+    /* Resolve dest path via PyOS_FSPath (rejects bytes) */
+    PyObject *dest_str = PyOS_FSPath(dest_arg);
+    if (!dest_str)
+        return NULL;
+    if (!PyUnicode_Check(dest_str)) {
+        Py_DECREF(dest_str);
+        PyErr_SetString(PyExc_TypeError,
+                        "path must be str or path-like object");
+        return NULL;
+    }
+    const char *dest_path = PyUnicode_AsUTF8(dest_str);
+    if (!dest_path) {
+        Py_DECREF(dest_str);
+        return NULL;
+    }
 
     if (recursive)
         flags |= BTRFS_UTIL_CREATE_SNAPSHOT_RECURSIVE;
@@ -427,8 +455,10 @@ mod_create_snapshot(PyObject *self, PyObject *args, PyObject *kwds)
     const char *source; int fd;
     PyObject *path_obj;
     int is_fd = parse_path_or_fd(source_or_fd, &path_obj, &source, &fd);
-    if (is_fd < 0)
+    if (is_fd < 0) {
+        Py_DECREF(dest_str);
         return NULL;
+    }
 
     enum btrfs_util_error err;
     if (is_fd) {
@@ -442,6 +472,7 @@ mod_create_snapshot(PyObject *self, PyObject *args, PyObject *kwds)
     }
 
     Py_XDECREF(path_obj);
+    Py_DECREF(dest_str);
     if (err)
         return set_error(err);
     Py_RETURN_NONE;
@@ -465,12 +496,23 @@ mod_delete_subvolume(PyObject *self, PyObject *args, PyObject *kwds)
 {
     static char *kw[] = {"path", "recursive", "name", NULL};
     PyObject *path_or_fd;
-    const char *name = NULL;
+    PyObject *name_obj = Py_None;
     int recursive = 0, flags = 0;
 
-    if (!PyArg_ParseTupleAndKeywords(args, kwds, "O|p$z", kw,
-                                     &path_or_fd, &recursive, &name))
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "O|p$O", kw,
+                                     &path_or_fd, &recursive, &name_obj))
         return NULL;
+
+    const char *name = NULL;
+    if (name_obj != Py_None) {
+        if (!PyUnicode_Check(name_obj)) {
+            PyErr_SetString(PyExc_TypeError, "name must be str or None");
+            return NULL;
+        }
+        name = PyUnicode_AsUTF8(name_obj);
+        if (!name)
+            return NULL;
+    }
 
     if (recursive)
         flags |= BTRFS_UTIL_DELETE_SUBVOLUME_RECURSIVE;

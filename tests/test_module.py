@@ -216,16 +216,16 @@ class TestPathOrFdArgParsing:
 
     # -- fd-specific create/delete validation -------------------------
 
-    def test_create_subvolume_fd_requires_name(self):
-        fd = os.open("/tmp", os.O_RDONLY)
+    def test_create_subvolume_fd_requires_name(self, tmp_path):
+        fd = os.open(str(tmp_path), os.O_RDONLY)
         try:
             with pytest.raises(ValueError, match="name is required"):
                 pybtrfs.create_subvolume(fd)
         finally:
             os.close(fd)
 
-    def test_delete_subvolume_fd_requires_name(self):
-        fd = os.open("/tmp", os.O_RDONLY)
+    def test_delete_subvolume_fd_requires_name(self, tmp_path):
+        fd = os.open(str(tmp_path), os.O_RDONLY)
         try:
             with pytest.raises(ValueError, match="name is required"):
                 pybtrfs.delete_subvolume(fd)

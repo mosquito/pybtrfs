@@ -45,13 +45,13 @@ parse_path_or_fd(PyObject *arg, PyObject **path_obj,
         *path = NULL;
         int overflow;
         long val = PyLong_AsLongAndOverflow(arg, &overflow);
+        if (val == -1 && PyErr_Occurred())
+            return -1;
         if (overflow || val < 0 || val > INT_MAX) {
             PyErr_SetString(PyExc_ValueError,
                             "file descriptor out of range");
             return -1;
         }
-        if (val == -1 && PyErr_Occurred())
-            return -1;
         *fd = (int)val;
         return 1;
     }
