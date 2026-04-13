@@ -4,8 +4,10 @@
 /* -- queries --------------------------------------------------------- */
 
 PyDoc_STRVAR(is_subvolume_doc,
-"is_subvolume(path: str) -> bool\n\n"
+"is_subvolume(path: str | int | os.PathLike) -> bool\n\n"
 "Return whether *path* is a Btrfs subvolume.\n\n"
+"*path* may be a filesystem path, a path-like object, or an open\n"
+"file descriptor (int).\n\n"
 "Returns ``False`` for paths that are not on a Btrfs filesystem\n"
 "or are not subvolumes.\n\n"
 "Example::\n\n"
@@ -19,16 +21,23 @@ static PyObject *
 mod_is_subvolume(PyObject *self, PyObject *args, PyObject *kwds)
 {
     static char *kw[] = {"path", NULL};
-    const char *path;
-    enum btrfs_util_error err;
-
-    if (!PyArg_ParseTupleAndKeywords(args, kwds, "s", kw, &path))
+    PyObject *path_or_fd;
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "O", kw, &path_or_fd))
         return NULL;
 
+    const char *path; int fd;
+    PyObject *path_obj;
+    int is_fd = parse_path_or_fd(path_or_fd, &path_obj, &path, &fd);
+    if (is_fd < 0)
+        return NULL;
+
+    enum btrfs_util_error err;
     Py_BEGIN_ALLOW_THREADS
-    err = btrfs_util_is_subvolume(path);
+    err = is_fd ? btrfs_util_is_subvolume_fd(fd)
+                : btrfs_util_is_subvolume(path);
     Py_END_ALLOW_THREADS
 
+    Py_XDECREF(path_obj);
     if (err == BTRFS_UTIL_OK)
         Py_RETURN_TRUE;
     if (err == BTRFS_UTIL_ERROR_NOT_BTRFS ||
@@ -38,8 +47,10 @@ mod_is_subvolume(PyObject *self, PyObject *args, PyObject *kwds)
 }
 
 PyDoc_STRVAR(subvolume_id_doc,
-"subvolume_id(path: str) -> int\n\n"
+"subvolume_id(path: str | int | os.PathLike) -> int\n\n"
 "Get the subvolume ID of the subvolume containing *path*.\n\n"
+"*path* may be a filesystem path, a path-like object, or an open\n"
+"file descriptor (int).\n\n"
 "Example::\n\n"
 "    >>> pybtrfs.subvolume_id('/mnt/btrfs')\n"
 "    5\n"
@@ -50,25 +61,34 @@ static PyObject *
 mod_subvolume_id(PyObject *self, PyObject *args, PyObject *kwds)
 {
     static char *kw[] = {"path", NULL};
-    const char *path;
+    PyObject *path_or_fd;
     uint64_t id;
-    enum btrfs_util_error err;
-
-    if (!PyArg_ParseTupleAndKeywords(args, kwds, "s", kw, &path))
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "O", kw, &path_or_fd))
         return NULL;
 
+    const char *path; int fd;
+    PyObject *path_obj;
+    int is_fd = parse_path_or_fd(path_or_fd, &path_obj, &path, &fd);
+    if (is_fd < 0)
+        return NULL;
+
+    enum btrfs_util_error err;
     Py_BEGIN_ALLOW_THREADS
-    err = btrfs_util_subvolume_id(path, &id);
+    err = is_fd ? btrfs_util_subvolume_id_fd(fd, &id)
+                : btrfs_util_subvolume_id(path, &id);
     Py_END_ALLOW_THREADS
 
+    Py_XDECREF(path_obj);
     if (err)
         return set_error(err);
     return PyLong_FromUnsignedLongLong(id);
 }
 
 PyDoc_STRVAR(subvolume_path_doc,
-"subvolume_path(path: str, id: int = 0) -> str\n\n"
+"subvolume_path(path: str | int | os.PathLike, id: int = 0) -> str\n\n"
 "Get the path of a subvolume relative to the filesystem root.\n\n"
+"*path* may be a filesystem path, a path-like object, or an open\n"
+"file descriptor (int).\n\n"
 "If *id* is 0 (default), the subvolume containing *path* is used.\n\n"
 "Example::\n\n"
 "    >>> pybtrfs.subvolume_path('/mnt/btrfs/my_subvol')\n"
@@ -80,18 +100,26 @@ static PyObject *
 mod_subvolume_path(PyObject *self, PyObject *args, PyObject *kwds)
 {
     static char *kw[] = {"path", "id", NULL};
-    const char *path;
+    PyObject *path_or_fd;
     uint64_t id = 0;
     char *subvol_path = NULL;
-    enum btrfs_util_error err;
-
-    if (!PyArg_ParseTupleAndKeywords(args, kwds, "s|K", kw, &path, &id))
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "O|K", kw,
+                                     &path_or_fd, &id))
         return NULL;
 
+    const char *path; int fd;
+    PyObject *path_obj;
+    int is_fd = parse_path_or_fd(path_or_fd, &path_obj, &path, &fd);
+    if (is_fd < 0)
+        return NULL;
+
+    enum btrfs_util_error err;
     Py_BEGIN_ALLOW_THREADS
-    err = btrfs_util_subvolume_path(path, id, &subvol_path);
+    err = is_fd ? btrfs_util_subvolume_path_fd(fd, id, &subvol_path)
+                : btrfs_util_subvolume_path(path, id, &subvol_path);
     Py_END_ALLOW_THREADS
 
+    Py_XDECREF(path_obj);
     if (err)
         return set_error(err);
 
@@ -101,8 +129,10 @@ mod_subvolume_path(PyObject *self, PyObject *args, PyObject *kwds)
 }
 
 PyDoc_STRVAR(subvolume_info_doc,
-"subvolume_info(path: str, id: int = 0) -> SubvolumeInfo\n\n"
+"subvolume_info(path: str | int | os.PathLike, id: int = 0) -> SubvolumeInfo\n\n"
 "Get information about a subvolume.\n\n"
+"*path* may be a filesystem path, a path-like object, or an open\n"
+"file descriptor (int).\n\n"
 "If *id* is 0 (default), the subvolume containing *path* is used.\n"
 "Returns a :class:`SubvolumeInfo` object with attributes such as\n"
 "``id``, ``parent_id``, ``generation``, ``uuid``, etc.\n\n"
@@ -117,18 +147,26 @@ static PyObject *
 mod_subvolume_info(PyObject *self, PyObject *args, PyObject *kwds)
 {
     static char *kw[] = {"path", "id", NULL};
-    const char *path;
+    PyObject *path_or_fd;
     uint64_t id = 0;
     struct btrfs_util_subvolume_info info;
-    enum btrfs_util_error err;
-
-    if (!PyArg_ParseTupleAndKeywords(args, kwds, "s|K", kw, &path, &id))
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "O|K", kw,
+                                     &path_or_fd, &id))
         return NULL;
 
+    const char *path; int fd;
+    PyObject *path_obj;
+    int is_fd = parse_path_or_fd(path_or_fd, &path_obj, &path, &fd);
+    if (is_fd < 0)
+        return NULL;
+
+    enum btrfs_util_error err;
     Py_BEGIN_ALLOW_THREADS
-    err = btrfs_util_subvolume_info(path, id, &info);
+    err = is_fd ? btrfs_util_subvolume_info_fd(fd, id, &info)
+                : btrfs_util_subvolume_info(path, id, &info);
     Py_END_ALLOW_THREADS
 
+    Py_XDECREF(path_obj);
     if (err)
         return set_error(err);
     return SubvolumeInfo_from_struct(&info);
@@ -137,8 +175,10 @@ mod_subvolume_info(PyObject *self, PyObject *args, PyObject *kwds)
 /* -- read-only flag -------------------------------------------------- */
 
 PyDoc_STRVAR(get_subvolume_read_only_doc,
-"get_subvolume_read_only(path: str) -> bool\n\n"
+"get_subvolume_read_only(path: str | int | os.PathLike) -> bool\n\n"
 "Get whether the subvolume at *path* is read-only.\n\n"
+"*path* may be a filesystem path, a path-like object, or an open\n"
+"file descriptor (int).\n\n"
 "Example::\n\n"
 "    >>> pybtrfs.get_subvolume_read_only('/mnt/btrfs/snap')\n"
 "    True\n");
@@ -147,25 +187,35 @@ static PyObject *
 mod_get_subvolume_read_only(PyObject *self, PyObject *args, PyObject *kwds)
 {
     static char *kw[] = {"path", NULL};
-    const char *path;
+    PyObject *path_or_fd;
     bool ro;
-    enum btrfs_util_error err;
-
-    if (!PyArg_ParseTupleAndKeywords(args, kwds, "s", kw, &path))
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "O", kw, &path_or_fd))
         return NULL;
 
+    const char *path; int fd;
+    PyObject *path_obj;
+    int is_fd = parse_path_or_fd(path_or_fd, &path_obj, &path, &fd);
+    if (is_fd < 0)
+        return NULL;
+
+    enum btrfs_util_error err;
     Py_BEGIN_ALLOW_THREADS
-    err = btrfs_util_get_subvolume_read_only(path, &ro);
+    err = is_fd ? btrfs_util_get_subvolume_read_only_fd(fd, &ro)
+                : btrfs_util_get_subvolume_read_only(path, &ro);
     Py_END_ALLOW_THREADS
 
+    Py_XDECREF(path_obj);
     if (err)
         return set_error(err);
     return PyBool_FromLong(ro);
 }
 
 PyDoc_STRVAR(set_subvolume_read_only_doc,
-"set_subvolume_read_only(path: str, read_only: bool = True) -> None\n\n"
+"set_subvolume_read_only(path: str | int | os.PathLike, "
+"read_only: bool = True) -> None\n\n"
 "Set whether the subvolume at *path* is read-only.\n\n"
+"*path* may be a filesystem path, a path-like object, or an open\n"
+"file descriptor (int).\n\n"
 "Example::\n\n"
 "    >>> pybtrfs.set_subvolume_read_only('/mnt/btrfs/snap')\n"
 "    >>> pybtrfs.get_subvolume_read_only('/mnt/btrfs/snap')\n"
@@ -176,17 +226,25 @@ static PyObject *
 mod_set_subvolume_read_only(PyObject *self, PyObject *args, PyObject *kwds)
 {
     static char *kw[] = {"path", "read_only", NULL};
-    const char *path;
+    PyObject *path_or_fd;
     int ro = 1;
-    enum btrfs_util_error err;
-
-    if (!PyArg_ParseTupleAndKeywords(args, kwds, "s|p", kw, &path, &ro))
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "O|p", kw,
+                                     &path_or_fd, &ro))
         return NULL;
 
+    const char *path; int fd;
+    PyObject *path_obj;
+    int is_fd = parse_path_or_fd(path_or_fd, &path_obj, &path, &fd);
+    if (is_fd < 0)
+        return NULL;
+
+    enum btrfs_util_error err;
     Py_BEGIN_ALLOW_THREADS
-    err = btrfs_util_set_subvolume_read_only(path, ro);
+    err = is_fd ? btrfs_util_set_subvolume_read_only_fd(fd, ro)
+                : btrfs_util_set_subvolume_read_only(path, ro);
     Py_END_ALLOW_THREADS
 
+    Py_XDECREF(path_obj);
     if (err)
         return set_error(err);
     Py_RETURN_NONE;
@@ -195,8 +253,10 @@ mod_set_subvolume_read_only(PyObject *self, PyObject *args, PyObject *kwds)
 /* -- default subvolume ----------------------------------------------- */
 
 PyDoc_STRVAR(get_default_subvolume_doc,
-"get_default_subvolume(path: str) -> int\n\n"
+"get_default_subvolume(path: str | int | os.PathLike) -> int\n\n"
 "Get the default subvolume ID for the filesystem at *path*.\n\n"
+"*path* may be a filesystem path, a path-like object, or an open\n"
+"file descriptor (int).\n\n"
 "Example::\n\n"
 "    >>> pybtrfs.get_default_subvolume('/mnt/btrfs')\n"
 "    5\n");
@@ -205,25 +265,34 @@ static PyObject *
 mod_get_default_subvolume(PyObject *self, PyObject *args, PyObject *kwds)
 {
     static char *kw[] = {"path", NULL};
-    const char *path;
+    PyObject *path_or_fd;
     uint64_t id;
-    enum btrfs_util_error err;
-
-    if (!PyArg_ParseTupleAndKeywords(args, kwds, "s", kw, &path))
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "O", kw, &path_or_fd))
         return NULL;
 
+    const char *path; int fd;
+    PyObject *path_obj;
+    int is_fd = parse_path_or_fd(path_or_fd, &path_obj, &path, &fd);
+    if (is_fd < 0)
+        return NULL;
+
+    enum btrfs_util_error err;
     Py_BEGIN_ALLOW_THREADS
-    err = btrfs_util_get_default_subvolume(path, &id);
+    err = is_fd ? btrfs_util_get_default_subvolume_fd(fd, &id)
+                : btrfs_util_get_default_subvolume(path, &id);
     Py_END_ALLOW_THREADS
 
+    Py_XDECREF(path_obj);
     if (err)
         return set_error(err);
     return PyLong_FromUnsignedLongLong(id);
 }
 
 PyDoc_STRVAR(set_default_subvolume_doc,
-"set_default_subvolume(path: str, id: int = 0) -> None\n\n"
+"set_default_subvolume(path: str | int | os.PathLike, id: int = 0) -> None\n\n"
 "Set the default subvolume for the filesystem at *path*.\n\n"
+"*path* may be a filesystem path, a path-like object, or an open\n"
+"file descriptor (int).\n\n"
 "If *id* is 0 (default), the subvolume containing *path* is used.\n\n"
 "Example::\n\n"
 "    >>> pybtrfs.set_default_subvolume('/mnt/btrfs', 256)\n");
@@ -232,17 +301,25 @@ static PyObject *
 mod_set_default_subvolume(PyObject *self, PyObject *args, PyObject *kwds)
 {
     static char *kw[] = {"path", "id", NULL};
-    const char *path;
+    PyObject *path_or_fd;
     uint64_t id = 0;
-    enum btrfs_util_error err;
-
-    if (!PyArg_ParseTupleAndKeywords(args, kwds, "s|K", kw, &path, &id))
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "O|K", kw,
+                                     &path_or_fd, &id))
         return NULL;
 
+    const char *path; int fd;
+    PyObject *path_obj;
+    int is_fd = parse_path_or_fd(path_or_fd, &path_obj, &path, &fd);
+    if (is_fd < 0)
+        return NULL;
+
+    enum btrfs_util_error err;
     Py_BEGIN_ALLOW_THREADS
-    err = btrfs_util_set_default_subvolume(path, id);
+    err = is_fd ? btrfs_util_set_default_subvolume_fd(fd, id)
+                : btrfs_util_set_default_subvolume(path, id);
     Py_END_ALLOW_THREADS
 
+    Py_XDECREF(path_obj);
     if (err)
         return set_error(err);
     Py_RETURN_NONE;
@@ -251,67 +328,123 @@ mod_set_default_subvolume(PyObject *self, PyObject *args, PyObject *kwds)
 /* -- create / snapshot / delete -------------------------------------- */
 
 PyDoc_STRVAR(create_subvolume_doc,
-"create_subvolume(path: str, qgroup_inherit: QgroupInherit | None = None) -> None\n\n"
-"Create a new subvolume at *path*.\n\n"
+"create_subvolume(path: str | int | os.PathLike, "
+"qgroup_inherit: QgroupInherit | None = None, *, "
+"name: str | None = None) -> None\n\n"
+"Create a new subvolume.\n\n"
+"When *path* is a string or path-like object, a subvolume is created\n"
+"at that path (existing behavior). When *path* is a file descriptor\n"
+"(int) for the parent directory, *name* is required and specifies the\n"
+"name of the new subvolume.\n\n"
 "Optionally pass a :class:`QgroupInherit` to set up qgroup inheritance\n"
 "for the new subvolume.\n\n"
 "Example::\n\n"
 "    >>> pybtrfs.create_subvolume('/mnt/btrfs/new_subvol')\n"
-"    >>> pybtrfs.is_subvolume('/mnt/btrfs/new_subvol')\n"
-"    True\n");
+"    >>> pybtrfs.create_subvolume(parent_fd, name='new_subvol')\n");
 
 static PyObject *
 mod_create_subvolume(PyObject *self, PyObject *args, PyObject *kwds)
 {
-    static char *kw[] = {"path", "qgroup_inherit", NULL};
-    const char *path;
+    static char *kw[] = {"path", "qgroup_inherit", "name", NULL};
+    PyObject *path_or_fd;
+    PyObject *name_obj = Py_None;
     QgroupInheritObject *qg_obj = NULL;
     struct btrfs_util_qgroup_inherit *qg = NULL;
-    enum btrfs_util_error err;
 
-    if (!PyArg_ParseTupleAndKeywords(args, kwds, "s|O!", kw,
-                                     &path, &QgroupInheritType, &qg_obj))
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "O|O!$O", kw,
+                                     &path_or_fd,
+                                     &QgroupInheritType, &qg_obj,
+                                     &name_obj))
         return NULL;
+
+    const char *name = NULL;
+    if (name_obj != Py_None) {
+        if (!PyUnicode_Check(name_obj)) {
+            PyErr_SetString(PyExc_TypeError, "name must be str or None");
+            return NULL;
+        }
+        name = PyUnicode_AsUTF8(name_obj);
+        if (!name)
+            return NULL;
+    }
+
     if (qg_obj)
         qg = qg_obj->inherit;
 
-    Py_BEGIN_ALLOW_THREADS
-    err = btrfs_util_create_subvolume(path, 0, NULL, qg);
-    Py_END_ALLOW_THREADS
+    const char *path; int fd;
+    PyObject *path_obj;
+    int is_fd = parse_path_or_fd(path_or_fd, &path_obj, &path, &fd);
+    if (is_fd < 0)
+        return NULL;
 
+    enum btrfs_util_error err;
+    if (is_fd) {
+        if (!name) {
+            PyErr_SetString(PyExc_ValueError,
+                            "name is required when path is a file descriptor");
+            return NULL;
+        }
+        Py_BEGIN_ALLOW_THREADS
+        err = btrfs_util_create_subvolume_fd(fd, name, 0, NULL, qg);
+        Py_END_ALLOW_THREADS
+    } else {
+        Py_BEGIN_ALLOW_THREADS
+        err = btrfs_util_create_subvolume(path, 0, NULL, qg);
+        Py_END_ALLOW_THREADS
+    }
+
+    Py_XDECREF(path_obj);
     if (err)
         return set_error(err);
     Py_RETURN_NONE;
 }
 
 PyDoc_STRVAR(create_snapshot_doc,
-"create_snapshot(source: str, path: str, recursive: bool = False, "
+"create_snapshot(source: str | int | os.PathLike, path: str | os.PathLike, "
+"recursive: bool = False, "
 "read_only: bool = False, qgroup_inherit: QgroupInherit | None = None) -> None\n\n"
 "Create a snapshot of the subvolume at *source*, placing it at *path*.\n\n"
+"*source* may be a filesystem path, a path-like object, or an open\n"
+"file descriptor (int). *path* may be a filesystem path or a path-like\n"
+"object.\n\n"
 "Set *recursive* to ``True`` to also snapshot child subvolumes.\n"
 "Set *read_only* to ``True`` to make the snapshot read-only.\n\n"
 "Example::\n\n"
 "    >>> pybtrfs.create_snapshot('/mnt/btrfs/data', '/mnt/btrfs/snap')\n"
-"    >>> pybtrfs.create_snapshot(\n"
-"    ...     '/mnt/btrfs/data', '/mnt/btrfs/ro_snap', read_only=True\n"
-"    ... )\n");
+"    >>> pybtrfs.create_snapshot(source_fd, '/mnt/btrfs/snap')\n");
 
 static PyObject *
 mod_create_snapshot(PyObject *self, PyObject *args, PyObject *kwds)
 {
     static char *kw[] = {"source", "path", "recursive", "read_only",
                          "qgroup_inherit", NULL};
-    const char *source, *path;
+    PyObject *source_or_fd;
+    PyObject *dest_arg;
     int recursive = 0, read_only = 0, flags = 0;
     QgroupInheritObject *qg_obj = NULL;
     struct btrfs_util_qgroup_inherit *qg = NULL;
-    enum btrfs_util_error err;
 
-    if (!PyArg_ParseTupleAndKeywords(args, kwds, "ss|ppO!", kw,
-                                     &source, &path,
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "OO|ppO!", kw,
+                                     &source_or_fd, &dest_arg,
                                      &recursive, &read_only,
                                      &QgroupInheritType, &qg_obj))
         return NULL;
+
+    /* Resolve dest path via PyOS_FSPath (rejects bytes) */
+    PyObject *dest_str = PyOS_FSPath(dest_arg);
+    if (!dest_str)
+        return NULL;
+    if (!PyUnicode_Check(dest_str)) {
+        Py_DECREF(dest_str);
+        PyErr_SetString(PyExc_TypeError,
+                        "path must be str or path-like object");
+        return NULL;
+    }
+    const char *dest_path = PyUnicode_AsUTF8(dest_str);
+    if (!dest_path) {
+        Py_DECREF(dest_str);
+        return NULL;
+    }
 
     if (recursive)
         flags |= BTRFS_UTIL_CREATE_SNAPSHOT_RECURSIVE;
@@ -320,50 +453,104 @@ mod_create_snapshot(PyObject *self, PyObject *args, PyObject *kwds)
     if (qg_obj)
         qg = qg_obj->inherit;
 
-    Py_BEGIN_ALLOW_THREADS
-    err = btrfs_util_create_snapshot(source, path, flags, NULL, qg);
-    Py_END_ALLOW_THREADS
+    const char *source; int fd;
+    PyObject *path_obj;
+    int is_fd = parse_path_or_fd(source_or_fd, &path_obj, &source, &fd);
+    if (is_fd < 0) {
+        Py_DECREF(dest_str);
+        return NULL;
+    }
 
+    enum btrfs_util_error err;
+    if (is_fd) {
+        Py_BEGIN_ALLOW_THREADS
+        err = btrfs_util_create_snapshot_fd(fd, dest_path, flags, NULL, qg);
+        Py_END_ALLOW_THREADS
+    } else {
+        Py_BEGIN_ALLOW_THREADS
+        err = btrfs_util_create_snapshot(source, dest_path, flags, NULL, qg);
+        Py_END_ALLOW_THREADS
+    }
+
+    Py_XDECREF(path_obj);
+    Py_DECREF(dest_str);
     if (err)
         return set_error(err);
     Py_RETURN_NONE;
 }
 
 PyDoc_STRVAR(delete_subvolume_doc,
-"delete_subvolume(path: str, recursive: bool = False) -> None\n\n"
-"Delete the subvolume or snapshot at *path*.\n\n"
+"delete_subvolume(path: str | int | os.PathLike, "
+"recursive: bool = False, *, name: str | None = None) -> None\n\n"
+"Delete a subvolume or snapshot.\n\n"
+"When *path* is a string or path-like object, the subvolume at that\n"
+"path is deleted (existing behavior). When *path* is a file descriptor\n"
+"(int) for the parent directory, *name* is required and specifies the\n"
+"subvolume to delete.\n\n"
 "Set *recursive* to ``True`` to also delete child subvolumes.\n\n"
 "Example::\n\n"
 "    >>> pybtrfs.delete_subvolume('/mnt/btrfs/old_snap')\n"
-"    >>> pybtrfs.delete_subvolume('/mnt/btrfs/nested', recursive=True)\n");
+"    >>> pybtrfs.delete_subvolume(parent_fd, name='old_snap')\n");
 
 static PyObject *
 mod_delete_subvolume(PyObject *self, PyObject *args, PyObject *kwds)
 {
-    static char *kw[] = {"path", "recursive", NULL};
-    const char *path;
+    static char *kw[] = {"path", "recursive", "name", NULL};
+    PyObject *path_or_fd;
+    PyObject *name_obj = Py_None;
     int recursive = 0, flags = 0;
-    enum btrfs_util_error err;
 
-    if (!PyArg_ParseTupleAndKeywords(args, kwds, "s|p", kw,
-                                     &path, &recursive))
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "O|p$O", kw,
+                                     &path_or_fd, &recursive, &name_obj))
         return NULL;
+
+    const char *name = NULL;
+    if (name_obj != Py_None) {
+        if (!PyUnicode_Check(name_obj)) {
+            PyErr_SetString(PyExc_TypeError, "name must be str or None");
+            return NULL;
+        }
+        name = PyUnicode_AsUTF8(name_obj);
+        if (!name)
+            return NULL;
+    }
 
     if (recursive)
         flags |= BTRFS_UTIL_DELETE_SUBVOLUME_RECURSIVE;
 
-    Py_BEGIN_ALLOW_THREADS
-    err = btrfs_util_delete_subvolume(path, flags);
-    Py_END_ALLOW_THREADS
+    const char *path; int fd;
+    PyObject *path_obj;
+    int is_fd = parse_path_or_fd(path_or_fd, &path_obj, &path, &fd);
+    if (is_fd < 0)
+        return NULL;
 
+    enum btrfs_util_error err;
+    if (is_fd) {
+        if (!name) {
+            PyErr_SetString(PyExc_ValueError,
+                            "name is required when path is a file descriptor");
+            return NULL;
+        }
+        Py_BEGIN_ALLOW_THREADS
+        err = btrfs_util_delete_subvolume_fd(fd, name, flags);
+        Py_END_ALLOW_THREADS
+    } else {
+        Py_BEGIN_ALLOW_THREADS
+        err = btrfs_util_delete_subvolume(path, flags);
+        Py_END_ALLOW_THREADS
+    }
+
+    Py_XDECREF(path_obj);
     if (err)
         return set_error(err);
     Py_RETURN_NONE;
 }
 
 PyDoc_STRVAR(deleted_subvolumes_doc,
-"deleted_subvolumes(path: str) -> list[int]\n\n"
+"deleted_subvolumes(path: str | int | os.PathLike) -> list[int]\n\n"
 "Get IDs of subvolumes that have been deleted but not yet cleaned up.\n\n"
+"*path* may be a filesystem path, a path-like object, or an open\n"
+"file descriptor (int).\n\n"
 "These are subvolumes awaiting background reclamation by the kernel.\n\n"
 "Example::\n\n"
 "    >>> pybtrfs.deleted_subvolumes('/mnt/btrfs')\n"
@@ -373,18 +560,25 @@ static PyObject *
 mod_deleted_subvolumes(PyObject *self, PyObject *args, PyObject *kwds)
 {
     static char *kw[] = {"path", NULL};
-    const char *path;
+    PyObject *path_or_fd;
     uint64_t *ids = NULL;
     size_t n = 0;
-    enum btrfs_util_error err;
-
-    if (!PyArg_ParseTupleAndKeywords(args, kwds, "s", kw, &path))
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "O", kw, &path_or_fd))
         return NULL;
 
+    const char *path; int fd;
+    PyObject *path_obj;
+    int is_fd = parse_path_or_fd(path_or_fd, &path_obj, &path, &fd);
+    if (is_fd < 0)
+        return NULL;
+
+    enum btrfs_util_error err;
     Py_BEGIN_ALLOW_THREADS
-    err = btrfs_util_deleted_subvolumes(path, &ids, &n);
+    err = is_fd ? btrfs_util_deleted_subvolumes_fd(fd, &ids, &n)
+                : btrfs_util_deleted_subvolumes(path, &ids, &n);
     Py_END_ALLOW_THREADS
 
+    Py_XDECREF(path_obj);
     if (err)
         return set_error(err);
 

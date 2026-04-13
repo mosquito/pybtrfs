@@ -5,6 +5,7 @@
 #include <Python.h>
 #include <structmember.h>
 #include "btrfsutil.h"
+#include "path_or_fd.h"
 
 /* BtrfsUtilError exception — defined in error.c */
 extern PyObject *BtrfsUtilError;

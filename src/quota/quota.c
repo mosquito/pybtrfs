@@ -8,8 +8,9 @@
 
 #include "kernel-shared/uapi/btrfs.h"
 #include "kernel-shared/uapi/btrfs_tree.h"
+#include "path_or_fd.h"
 
-/* -- helper -------------------------------------------------------- */
+/* -- helpers ------------------------------------------------------- */
 
 static int
 open_path(const char *path)
@@ -20,11 +21,30 @@ open_path(const char *path)
     return fd;
 }
 
+/*
+ * Resolve path-or-fd to an fd for ioctl use.
+ * If path mode: opens the path, sets *opened = 1 (caller must close).
+ * If fd mode: uses fd directly, sets *opened = 0.
+ * Returns fd on success, -1 on error (exception set).
+ */
+static int
+resolve_fd(int is_fd, const char *path, int fd, int *opened)
+{
+    if (is_fd) {
+        *opened = 0;
+        return fd;
+    }
+    *opened = 1;
+    return open_path(path);
+}
+
 /* -- quota_enable(path) -------------------------------------------- */
 
 PyDoc_STRVAR(quota_enable_doc,
-"quota_enable(path: str) -> None\n\n"
+"quota_enable(path: str | int | os.PathLike) -> None\n\n"
 "Enable btrfs quotas on the filesystem at *path*.\n\n"
+"*path* may be a filesystem path, a path-like object, or an open\n"
+"file descriptor (int).\n\n"
 "Calls BTRFS_IOC_QUOTA_CTL with BTRFS_QUOTA_CTL_ENABLE.\n\n"
 "Example::\n\n"
 "    >>> pybtrfs.quota_enable('/mnt/btrfs')\n"
@@ -33,13 +53,19 @@ PyDoc_STRVAR(quota_enable_doc,
 static PyObject *
 pybtrfs_quota_enable(PyObject *self, PyObject *args)
 {
-    const char *path;
-    if (!PyArg_ParseTuple(args, "s:quota_enable", &path))
+    PyObject *path_or_fd;
+    if (!PyArg_ParseTuple(args, "O:quota_enable", &path_or_fd))
         return NULL;
 
-    int fd = open_path(path);
-    if (fd < 0)
+    const char *path; int fd;
+    PyObject *path_obj;
+    int is_fd = parse_path_or_fd(path_or_fd, &path_obj, &path, &fd);
+    if (is_fd < 0)
         return NULL;
+
+    int opened;
+    fd = resolve_fd(is_fd, path, fd, &opened);
+    if (fd < 0) { Py_XDECREF(path_obj); return NULL; }
 
     struct btrfs_ioctl_quota_ctl_args qargs = {
         .cmd = BTRFS_QUOTA_CTL_ENABLE,
@@ -50,9 +76,13 @@ pybtrfs_quota_enable(PyObject *self, PyObject *args)
     ret = ioctl(fd, BTRFS_IOC_QUOTA_CTL, &qargs);
     Py_END_ALLOW_THREADS
 
-    close(fd);
-    if (ret < 0)
-        return PyErr_SetFromErrnoWithFilename(PyExc_OSError, path);
+    if (opened) close(fd);
+    Py_XDECREF(path_obj);
+    if (ret < 0) {
+        if (path)
+            return PyErr_SetFromErrnoWithFilename(PyExc_OSError, path);
+        return PyErr_SetFromErrno(PyExc_OSError);
+    }
 
     Py_RETURN_NONE;
 }
@@ -60,8 +90,10 @@ pybtrfs_quota_enable(PyObject *self, PyObject *args)
 /* -- quota_enable_simple(path) ------------------------------------- */
 
 PyDoc_STRVAR(quota_enable_simple_doc,
-"quota_enable_simple(path: str) -> None\n\n"
+"quota_enable_simple(path: str | int | os.PathLike) -> None\n\n"
 "Enable simple quotas (squota) on the filesystem at *path*.\n\n"
+"*path* may be a filesystem path, a path-like object, or an open\n"
+"file descriptor (int).\n\n"
 "Simple quotas have lower overhead than full quotas and do not require\n"
 "a rescan. Available since Linux 6.7.\n\n"
 "Calls BTRFS_IOC_QUOTA_CTL with BTRFS_QUOTA_CTL_ENABLE_SIMPLE_QUOTA.\n\n"
@@ -71,13 +103,19 @@ PyDoc_STRVAR(quota_enable_simple_doc,
 static PyObject *
 pybtrfs_quota_enable_simple(PyObject *self, PyObject *args)
 {
-    const char *path;
-    if (!PyArg_ParseTuple(args, "s:quota_enable_simple", &path))
+    PyObject *path_or_fd;
+    if (!PyArg_ParseTuple(args, "O:quota_enable_simple", &path_or_fd))
         return NULL;
 
-    int fd = open_path(path);
-    if (fd < 0)
+    const char *path; int fd;
+    PyObject *path_obj;
+    int is_fd = parse_path_or_fd(path_or_fd, &path_obj, &path, &fd);
+    if (is_fd < 0)
         return NULL;
+
+    int opened;
+    fd = resolve_fd(is_fd, path, fd, &opened);
+    if (fd < 0) { Py_XDECREF(path_obj); return NULL; }
 
     struct btrfs_ioctl_quota_ctl_args qargs = {
         .cmd = BTRFS_QUOTA_CTL_ENABLE_SIMPLE_QUOTA,
@@ -88,9 +126,13 @@ pybtrfs_quota_enable_simple(PyObject *self, PyObject *args)
     ret = ioctl(fd, BTRFS_IOC_QUOTA_CTL, &qargs);
     Py_END_ALLOW_THREADS
 
-    close(fd);
-    if (ret < 0)
-        return PyErr_SetFromErrnoWithFilename(PyExc_OSError, path);
+    if (opened) close(fd);
+    Py_XDECREF(path_obj);
+    if (ret < 0) {
+        if (path)
+            return PyErr_SetFromErrnoWithFilename(PyExc_OSError, path);
+        return PyErr_SetFromErrno(PyExc_OSError);
+    }
 
     Py_RETURN_NONE;
 }
@@ -98,8 +140,10 @@ pybtrfs_quota_enable_simple(PyObject *self, PyObject *args)
 /* -- quota_disable(path) ------------------------------------------- */
 
 PyDoc_STRVAR(quota_disable_doc,
-"quota_disable(path: str) -> None\n\n"
+"quota_disable(path: str | int | os.PathLike) -> None\n\n"
 "Disable btrfs quotas on the filesystem at *path*.\n\n"
+"*path* may be a filesystem path, a path-like object, or an open\n"
+"file descriptor (int).\n\n"
 "Calls BTRFS_IOC_QUOTA_CTL with BTRFS_QUOTA_CTL_DISABLE.\n\n"
 "Example::\n\n"
 "    >>> pybtrfs.quota_disable('/mnt/btrfs')\n");
@@ -107,13 +151,19 @@ PyDoc_STRVAR(quota_disable_doc,
 static PyObject *
 pybtrfs_quota_disable(PyObject *self, PyObject *args)
 {
-    const char *path;
-    if (!PyArg_ParseTuple(args, "s:quota_disable", &path))
+    PyObject *path_or_fd;
+    if (!PyArg_ParseTuple(args, "O:quota_disable", &path_or_fd))
         return NULL;
 
-    int fd = open_path(path);
-    if (fd < 0)
+    const char *path; int fd;
+    PyObject *path_obj;
+    int is_fd = parse_path_or_fd(path_or_fd, &path_obj, &path, &fd);
+    if (is_fd < 0)
         return NULL;
+
+    int opened;
+    fd = resolve_fd(is_fd, path, fd, &opened);
+    if (fd < 0) { Py_XDECREF(path_obj); return NULL; }
 
     struct btrfs_ioctl_quota_ctl_args qargs = {
         .cmd = BTRFS_QUOTA_CTL_DISABLE,
@@ -124,9 +174,13 @@ pybtrfs_quota_disable(PyObject *self, PyObject *args)
     ret = ioctl(fd, BTRFS_IOC_QUOTA_CTL, &qargs);
     Py_END_ALLOW_THREADS
 
-    close(fd);
-    if (ret < 0)
-        return PyErr_SetFromErrnoWithFilename(PyExc_OSError, path);
+    if (opened) close(fd);
+    Py_XDECREF(path_obj);
+    if (ret < 0) {
+        if (path)
+            return PyErr_SetFromErrnoWithFilename(PyExc_OSError, path);
+        return PyErr_SetFromErrno(PyExc_OSError);
+    }
 
     Py_RETURN_NONE;
 }
@@ -134,8 +188,10 @@ pybtrfs_quota_disable(PyObject *self, PyObject *args)
 /* -- quota_rescan(path) -------------------------------------------- */
 
 PyDoc_STRVAR(quota_rescan_doc,
-"quota_rescan(path: str) -> None\n\n"
+"quota_rescan(path: str | int | os.PathLike) -> None\n\n"
 "Start a quota rescan on the filesystem at *path*.\n\n"
+"*path* may be a filesystem path, a path-like object, or an open\n"
+"file descriptor (int).\n\n"
 "A rescan recalculates all qgroup counters by walking the extent tree.\n"
 "Use :func:`quota_rescan_wait` to block until the rescan completes.\n\n"
 "Calls BTRFS_IOC_QUOTA_RESCAN.\n\n"
@@ -146,13 +202,19 @@ PyDoc_STRVAR(quota_rescan_doc,
 static PyObject *
 pybtrfs_quota_rescan(PyObject *self, PyObject *args)
 {
-    const char *path;
-    if (!PyArg_ParseTuple(args, "s:quota_rescan", &path))
+    PyObject *path_or_fd;
+    if (!PyArg_ParseTuple(args, "O:quota_rescan", &path_or_fd))
         return NULL;
 
-    int fd = open_path(path);
-    if (fd < 0)
+    const char *path; int fd;
+    PyObject *path_obj;
+    int is_fd = parse_path_or_fd(path_or_fd, &path_obj, &path, &fd);
+    if (is_fd < 0)
         return NULL;
+
+    int opened;
+    fd = resolve_fd(is_fd, path, fd, &opened);
+    if (fd < 0) { Py_XDECREF(path_obj); return NULL; }
 
     struct btrfs_ioctl_quota_rescan_args rargs;
     memset(&rargs, 0, sizeof(rargs));
@@ -162,9 +224,13 @@ pybtrfs_quota_rescan(PyObject *self, PyObject *args)
     ret = ioctl(fd, BTRFS_IOC_QUOTA_RESCAN, &rargs);
     Py_END_ALLOW_THREADS
 
-    close(fd);
-    if (ret < 0)
-        return PyErr_SetFromErrnoWithFilename(PyExc_OSError, path);
+    if (opened) close(fd);
+    Py_XDECREF(path_obj);
+    if (ret < 0) {
+        if (path)
+            return PyErr_SetFromErrnoWithFilename(PyExc_OSError, path);
+        return PyErr_SetFromErrno(PyExc_OSError);
+    }
 
     Py_RETURN_NONE;
 }
@@ -172,8 +238,10 @@ pybtrfs_quota_rescan(PyObject *self, PyObject *args)
 /* -- quota_rescan_status(path) ------------------------------------- */
 
 PyDoc_STRVAR(quota_rescan_status_doc,
-"quota_rescan_status(path: str) -> dict\n\n"
+"quota_rescan_status(path: str | int | os.PathLike) -> dict\n\n"
 "Return the current quota rescan status as ``{\"flags\": int, \"progress\": int}``.\n\n"
+"*path* may be a filesystem path, a path-like object, or an open\n"
+"file descriptor (int).\n\n"
 "The *flags* field is non-zero while a rescan is in progress.\n"
 "The *progress* field indicates how far the rescan has advanced.\n\n"
 "Calls BTRFS_IOC_QUOTA_RESCAN_STATUS.\n\n"
@@ -184,13 +252,19 @@ PyDoc_STRVAR(quota_rescan_status_doc,
 static PyObject *
 pybtrfs_quota_rescan_status(PyObject *self, PyObject *args)
 {
-    const char *path;
-    if (!PyArg_ParseTuple(args, "s:quota_rescan_status", &path))
+    PyObject *path_or_fd;
+    if (!PyArg_ParseTuple(args, "O:quota_rescan_status", &path_or_fd))
         return NULL;
 
-    int fd = open_path(path);
-    if (fd < 0)
+    const char *path; int fd;
+    PyObject *path_obj;
+    int is_fd = parse_path_or_fd(path_or_fd, &path_obj, &path, &fd);
+    if (is_fd < 0)
         return NULL;
+
+    int opened;
+    fd = resolve_fd(is_fd, path, fd, &opened);
+    if (fd < 0) { Py_XDECREF(path_obj); return NULL; }
 
     struct btrfs_ioctl_quota_rescan_args rargs;
     memset(&rargs, 0, sizeof(rargs));
@@ -200,9 +274,13 @@ pybtrfs_quota_rescan_status(PyObject *self, PyObject *args)
     ret = ioctl(fd, BTRFS_IOC_QUOTA_RESCAN_STATUS, &rargs);
     Py_END_ALLOW_THREADS
 
-    close(fd);
-    if (ret < 0)
-        return PyErr_SetFromErrnoWithFilename(PyExc_OSError, path);
+    if (opened) close(fd);
+    Py_XDECREF(path_obj);
+    if (ret < 0) {
+        if (path)
+            return PyErr_SetFromErrnoWithFilename(PyExc_OSError, path);
+        return PyErr_SetFromErrno(PyExc_OSError);
+    }
 
     return Py_BuildValue("{s:K,s:K}",
                          "flags",    (unsigned long long)rargs.flags,
@@ -212,8 +290,10 @@ pybtrfs_quota_rescan_status(PyObject *self, PyObject *args)
 /* -- quota_rescan_wait(path) --------------------------------------- */
 
 PyDoc_STRVAR(quota_rescan_wait_doc,
-"quota_rescan_wait(path: str) -> None\n\n"
+"quota_rescan_wait(path: str | int | os.PathLike) -> None\n\n"
 "Block until the current quota rescan completes.\n\n"
+"*path* may be a filesystem path, a path-like object, or an open\n"
+"file descriptor (int).\n\n"
 "Releases the GIL while waiting so other Python threads can run.\n\n"
 "Calls BTRFS_IOC_QUOTA_RESCAN_WAIT.\n\n"
 "Example::\n\n"
@@ -223,22 +303,32 @@ PyDoc_STRVAR(quota_rescan_wait_doc,
 static PyObject *
 pybtrfs_quota_rescan_wait(PyObject *self, PyObject *args)
 {
-    const char *path;
-    if (!PyArg_ParseTuple(args, "s:quota_rescan_wait", &path))
+    PyObject *path_or_fd;
+    if (!PyArg_ParseTuple(args, "O:quota_rescan_wait", &path_or_fd))
         return NULL;
 
-    int fd = open_path(path);
-    if (fd < 0)
+    const char *path; int fd;
+    PyObject *path_obj;
+    int is_fd = parse_path_or_fd(path_or_fd, &path_obj, &path, &fd);
+    if (is_fd < 0)
         return NULL;
+
+    int opened;
+    fd = resolve_fd(is_fd, path, fd, &opened);
+    if (fd < 0) { Py_XDECREF(path_obj); return NULL; }
 
     int ret;
     Py_BEGIN_ALLOW_THREADS
     ret = ioctl(fd, BTRFS_IOC_QUOTA_RESCAN_WAIT, NULL);
     Py_END_ALLOW_THREADS
 
-    close(fd);
-    if (ret < 0)
-        return PyErr_SetFromErrnoWithFilename(PyExc_OSError, path);
+    if (opened) close(fd);
+    Py_XDECREF(path_obj);
+    if (ret < 0) {
+        if (path)
+            return PyErr_SetFromErrnoWithFilename(PyExc_OSError, path);
+        return PyErr_SetFromErrno(PyExc_OSError);
+    }
 
     Py_RETURN_NONE;
 }
@@ -246,8 +336,10 @@ pybtrfs_quota_rescan_wait(PyObject *self, PyObject *args)
 /* -- qgroup_create(path, qgroupid) -------------------------------- */
 
 PyDoc_STRVAR(qgroup_create_doc,
-"qgroup_create(path: str, qgroupid: int) -> None\n\n"
+"qgroup_create(path: str | int | os.PathLike, qgroupid: int) -> None\n\n"
 "Create a new qgroup with the given *qgroupid*.\n\n"
+"*path* may be a filesystem path, a path-like object, or an open\n"
+"file descriptor (int).\n\n"
 "The qgroupid is a 64-bit value encoding ``(level << 48) | id``.\n"
 "Level-0 qgroups are created automatically for each subvolume;\n"
 "use this for higher-level qgroups.\n\n"
@@ -259,14 +351,20 @@ PyDoc_STRVAR(qgroup_create_doc,
 static PyObject *
 pybtrfs_qgroup_create(PyObject *self, PyObject *args)
 {
-    const char *path;
+    PyObject *path_or_fd;
     unsigned long long qgroupid;
-    if (!PyArg_ParseTuple(args, "sK:qgroup_create", &path, &qgroupid))
+    if (!PyArg_ParseTuple(args, "OK:qgroup_create", &path_or_fd, &qgroupid))
         return NULL;
 
-    int fd = open_path(path);
-    if (fd < 0)
+    const char *path; int fd;
+    PyObject *path_obj;
+    int is_fd = parse_path_or_fd(path_or_fd, &path_obj, &path, &fd);
+    if (is_fd < 0)
         return NULL;
+
+    int opened;
+    fd = resolve_fd(is_fd, path, fd, &opened);
+    if (fd < 0) { Py_XDECREF(path_obj); return NULL; }
 
     struct btrfs_ioctl_qgroup_create_args cargs = {
         .create = 1,
@@ -278,9 +376,13 @@ pybtrfs_qgroup_create(PyObject *self, PyObject *args)
     ret = ioctl(fd, BTRFS_IOC_QGROUP_CREATE, &cargs);
     Py_END_ALLOW_THREADS
 
-    close(fd);
-    if (ret < 0)
-        return PyErr_SetFromErrnoWithFilename(PyExc_OSError, path);
+    if (opened) close(fd);
+    Py_XDECREF(path_obj);
+    if (ret < 0) {
+        if (path)
+            return PyErr_SetFromErrnoWithFilename(PyExc_OSError, path);
+        return PyErr_SetFromErrno(PyExc_OSError);
+    }
 
     Py_RETURN_NONE;
 }
@@ -288,8 +390,10 @@ pybtrfs_qgroup_create(PyObject *self, PyObject *args)
 /* -- qgroup_destroy(path, qgroupid) ------------------------------- */
 
 PyDoc_STRVAR(qgroup_destroy_doc,
-"qgroup_destroy(path: str, qgroupid: int) -> None\n\n"
+"qgroup_destroy(path: str | int | os.PathLike, qgroupid: int) -> None\n\n"
 "Destroy an existing qgroup.\n\n"
+"*path* may be a filesystem path, a path-like object, or an open\n"
+"file descriptor (int).\n\n"
 "The qgroup must have no child assignments. Raises ``OSError``\n"
 "if the qgroup does not exist.\n\n"
 "Calls BTRFS_IOC_QGROUP_CREATE with create=0.\n\n"
@@ -300,14 +404,20 @@ PyDoc_STRVAR(qgroup_destroy_doc,
 static PyObject *
 pybtrfs_qgroup_destroy(PyObject *self, PyObject *args)
 {
-    const char *path;
+    PyObject *path_or_fd;
     unsigned long long qgroupid;
-    if (!PyArg_ParseTuple(args, "sK:qgroup_destroy", &path, &qgroupid))
+    if (!PyArg_ParseTuple(args, "OK:qgroup_destroy", &path_or_fd, &qgroupid))
         return NULL;
 
-    int fd = open_path(path);
-    if (fd < 0)
+    const char *path; int fd;
+    PyObject *path_obj;
+    int is_fd = parse_path_or_fd(path_or_fd, &path_obj, &path, &fd);
+    if (is_fd < 0)
         return NULL;
+
+    int opened;
+    fd = resolve_fd(is_fd, path, fd, &opened);
+    if (fd < 0) { Py_XDECREF(path_obj); return NULL; }
 
     struct btrfs_ioctl_qgroup_create_args cargs = {
         .create = 0,
@@ -319,9 +429,13 @@ pybtrfs_qgroup_destroy(PyObject *self, PyObject *args)
     ret = ioctl(fd, BTRFS_IOC_QGROUP_CREATE, &cargs);
     Py_END_ALLOW_THREADS
 
-    close(fd);
-    if (ret < 0)
-        return PyErr_SetFromErrnoWithFilename(PyExc_OSError, path);
+    if (opened) close(fd);
+    Py_XDECREF(path_obj);
+    if (ret < 0) {
+        if (path)
+            return PyErr_SetFromErrnoWithFilename(PyExc_OSError, path);
+        return PyErr_SetFromErrno(PyExc_OSError);
+    }
 
     Py_RETURN_NONE;
 }
@@ -329,8 +443,10 @@ pybtrfs_qgroup_destroy(PyObject *self, PyObject *args)
 /* -- qgroup_assign(path, src, dst) --------------------------------- */
 
 PyDoc_STRVAR(qgroup_assign_doc,
-"qgroup_assign(path: str, src: int, dst: int) -> None\n\n"
+"qgroup_assign(path: str | int | os.PathLike, src: int, dst: int) -> None\n\n"
 "Assign qgroup *src* as a child of qgroup *dst*.\n\n"
+"*path* may be a filesystem path, a path-like object, or an open\n"
+"file descriptor (int).\n\n"
 "This makes *dst* a parent qgroup that tracks the combined usage\n"
 "of its children. Typically *src* is a level-0 qgroup (subvolume)\n"
 "and *dst* is a higher-level qgroup.\n\n"
@@ -344,14 +460,21 @@ PyDoc_STRVAR(qgroup_assign_doc,
 static PyObject *
 pybtrfs_qgroup_assign(PyObject *self, PyObject *args)
 {
-    const char *path;
+    PyObject *path_or_fd;
     unsigned long long src, dst;
-    if (!PyArg_ParseTuple(args, "sKK:qgroup_assign", &path, &src, &dst))
+    if (!PyArg_ParseTuple(args, "OKK:qgroup_assign",
+                          &path_or_fd, &src, &dst))
         return NULL;
 
-    int fd = open_path(path);
-    if (fd < 0)
+    const char *path; int fd;
+    PyObject *path_obj;
+    int is_fd = parse_path_or_fd(path_or_fd, &path_obj, &path, &fd);
+    if (is_fd < 0)
         return NULL;
+
+    int opened;
+    fd = resolve_fd(is_fd, path, fd, &opened);
+    if (fd < 0) { Py_XDECREF(path_obj); return NULL; }
 
     struct btrfs_ioctl_qgroup_assign_args aargs = {
         .assign = 1,
@@ -364,9 +487,13 @@ pybtrfs_qgroup_assign(PyObject *self, PyObject *args)
     ret = ioctl(fd, BTRFS_IOC_QGROUP_ASSIGN, &aargs);
     Py_END_ALLOW_THREADS
 
-    close(fd);
-    if (ret < 0)
-        return PyErr_SetFromErrnoWithFilename(PyExc_OSError, path);
+    if (opened) close(fd);
+    Py_XDECREF(path_obj);
+    if (ret < 0) {
+        if (path)
+            return PyErr_SetFromErrnoWithFilename(PyExc_OSError, path);
+        return PyErr_SetFromErrno(PyExc_OSError);
+    }
 
     Py_RETURN_NONE;
 }
@@ -374,8 +501,10 @@ pybtrfs_qgroup_assign(PyObject *self, PyObject *args)
 /* -- qgroup_remove(path, src, dst) --------------------------------- */
 
 PyDoc_STRVAR(qgroup_remove_doc,
-"qgroup_remove(path: str, src: int, dst: int) -> None\n\n"
+"qgroup_remove(path: str | int | os.PathLike, src: int, dst: int) -> None\n\n"
 "Remove qgroup *src* from parent qgroup *dst*.\n\n"
+"*path* may be a filesystem path, a path-like object, or an open\n"
+"file descriptor (int).\n\n"
 "Reverses a previous :func:`qgroup_assign` call.\n\n"
 "Calls BTRFS_IOC_QGROUP_ASSIGN with assign=0.\n\n"
 "Example::\n\n"
@@ -385,14 +514,21 @@ PyDoc_STRVAR(qgroup_remove_doc,
 static PyObject *
 pybtrfs_qgroup_remove(PyObject *self, PyObject *args)
 {
-    const char *path;
+    PyObject *path_or_fd;
     unsigned long long src, dst;
-    if (!PyArg_ParseTuple(args, "sKK:qgroup_remove", &path, &src, &dst))
+    if (!PyArg_ParseTuple(args, "OKK:qgroup_remove",
+                          &path_or_fd, &src, &dst))
         return NULL;
 
-    int fd = open_path(path);
-    if (fd < 0)
+    const char *path; int fd;
+    PyObject *path_obj;
+    int is_fd = parse_path_or_fd(path_or_fd, &path_obj, &path, &fd);
+    if (is_fd < 0)
         return NULL;
+
+    int opened;
+    fd = resolve_fd(is_fd, path, fd, &opened);
+    if (fd < 0) { Py_XDECREF(path_obj); return NULL; }
 
     struct btrfs_ioctl_qgroup_assign_args aargs = {
         .assign = 0,
@@ -405,9 +541,13 @@ pybtrfs_qgroup_remove(PyObject *self, PyObject *args)
     ret = ioctl(fd, BTRFS_IOC_QGROUP_ASSIGN, &aargs);
     Py_END_ALLOW_THREADS
 
-    close(fd);
-    if (ret < 0)
-        return PyErr_SetFromErrnoWithFilename(PyExc_OSError, path);
+    if (opened) close(fd);
+    Py_XDECREF(path_obj);
+    if (ret < 0) {
+        if (path)
+            return PyErr_SetFromErrnoWithFilename(PyExc_OSError, path);
+        return PyErr_SetFromErrno(PyExc_OSError);
+    }
 
     Py_RETURN_NONE;
 }
@@ -415,8 +555,11 @@ pybtrfs_qgroup_remove(PyObject *self, PyObject *args)
 /* -- qgroup_limit(path, qgroupid, max_rfer=0, max_excl=0) --------- */
 
 PyDoc_STRVAR(qgroup_limit_doc,
-"qgroup_limit(path: str, qgroupid: int, max_rfer: int = 0, max_excl: int = 0) -> None\n\n"
+"qgroup_limit(path: str | int | os.PathLike, qgroupid: int, "
+"max_rfer: int = 0, max_excl: int = 0) -> None\n\n"
 "Set quota limits for *qgroupid*.\n\n"
+"*path* may be a filesystem path, a path-like object, or an open\n"
+"file descriptor (int).\n\n"
 "*max_rfer* limits the referenced bytes (total data, including shared).\n"
 "*max_excl* limits the exclusive bytes (data unique to this qgroup).\n"
 "A value of 0 clears the corresponding limit.\n\n"
@@ -428,21 +571,27 @@ PyDoc_STRVAR(qgroup_limit_doc,
 static PyObject *
 pybtrfs_qgroup_limit(PyObject *self, PyObject *args, PyObject *kwargs)
 {
-    const char *path;
+    PyObject *path_or_fd;
     unsigned long long qgroupid;
     unsigned long long max_rfer = 0;
     unsigned long long max_excl = 0;
 
     static char *kwlist[] = {"path", "qgroupid", "max_rfer", "max_excl", NULL};
 
-    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "sK|KK:qgroup_limit",
-                                     kwlist, &path, &qgroupid,
+    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "OK|KK:qgroup_limit",
+                                     kwlist, &path_or_fd, &qgroupid,
                                      &max_rfer, &max_excl))
         return NULL;
 
-    int fd = open_path(path);
-    if (fd < 0)
+    const char *path; int fd;
+    PyObject *path_obj;
+    int is_fd = parse_path_or_fd(path_or_fd, &path_obj, &path, &fd);
+    if (is_fd < 0)
         return NULL;
+
+    int opened;
+    fd = resolve_fd(is_fd, path, fd, &opened);
+    if (fd < 0) { Py_XDECREF(path_obj); return NULL; }
 
     struct btrfs_ioctl_qgroup_limit_args largs;
     memset(&largs, 0, sizeof(largs));
@@ -462,9 +611,13 @@ pybtrfs_qgroup_limit(PyObject *self, PyObject *args, PyObject *kwargs)
     ret = ioctl(fd, BTRFS_IOC_QGROUP_LIMIT, &largs);
     Py_END_ALLOW_THREADS
 
-    close(fd);
-    if (ret < 0)
-        return PyErr_SetFromErrnoWithFilename(PyExc_OSError, path);
+    if (opened) close(fd);
+    Py_XDECREF(path_obj);
+    if (ret < 0) {
+        if (path)
+            return PyErr_SetFromErrnoWithFilename(PyExc_OSError, path);
+        return PyErr_SetFromErrno(PyExc_OSError);
+    }
 
     Py_RETURN_NONE;
 }
@@ -472,8 +625,10 @@ pybtrfs_qgroup_limit(PyObject *self, PyObject *args, PyObject *kwargs)
 /* -- qgroup_info(path) → list[dict] ------------------------------- */
 
 PyDoc_STRVAR(qgroup_info_doc,
-"qgroup_info(path: str) -> list[dict]\n\n"
+"qgroup_info(path: str | int | os.PathLike) -> list[dict]\n\n"
 "Return a list of dicts describing every qgroup on the filesystem.\n\n"
+"*path* may be a filesystem path, a path-like object, or an open\n"
+"file descriptor (int).\n\n"
 "Each dict contains:\n\n"
 "- **qgroupid** (int): raw qgroup ID (``level << 48 | id``).\n"
 "- **rfer** (int): referenced bytes.\n"
@@ -493,18 +648,25 @@ PyDoc_STRVAR(qgroup_info_doc,
 static PyObject *
 pybtrfs_qgroup_info(PyObject *self, PyObject *args)
 {
-    const char *path;
-    if (!PyArg_ParseTuple(args, "s:qgroup_info", &path))
+    PyObject *path_or_fd;
+    if (!PyArg_ParseTuple(args, "O:qgroup_info", &path_or_fd))
         return NULL;
 
-    int fd = open_path(path);
-    if (fd < 0)
+    const char *path; int fd;
+    PyObject *path_obj;
+    int is_fd = parse_path_or_fd(path_or_fd, &path_obj, &path, &fd);
+    if (is_fd < 0)
         return NULL;
+
+    int opened;
+    fd = resolve_fd(is_fd, path, fd, &opened);
+    if (fd < 0) { Py_XDECREF(path_obj); return NULL; }
 
     /* accumulator: qgroupid -> dict */
     PyObject *accum = PyDict_New();
     if (!accum) {
-        close(fd);
+        if (opened) close(fd);
+        Py_XDECREF(path_obj);
         return NULL;
     }
 
@@ -530,9 +692,12 @@ pybtrfs_qgroup_info(PyObject *self, PyObject *args)
         Py_END_ALLOW_THREADS
 
         if (ret < 0) {
-            close(fd);
+            if (opened) close(fd);
+            Py_XDECREF(path_obj);
             Py_DECREF(accum);
-            return PyErr_SetFromErrnoWithFilename(PyExc_OSError, path);
+            if (path)
+                return PyErr_SetFromErrnoWithFilename(PyExc_OSError, path);
+            return PyErr_SetFromErrno(PyExc_OSError);
         }
 
         if (sk->nr_items == 0)
@@ -645,7 +810,8 @@ pybtrfs_qgroup_info(PyObject *self, PyObject *args)
         sk->nr_items = 4096;
     }
 
-    close(fd);
+    if (opened) close(fd);
+    Py_XDECREF(path_obj);
 
     /* convert dict-of-dicts → list-of-dicts */
     PyObject *values = PyDict_Values(accum);
@@ -658,7 +824,8 @@ pybtrfs_qgroup_info(PyObject *self, PyObject *args)
     return result;
 
 error:
-    close(fd);
+    if (opened) close(fd);
+    Py_XDECREF(path_obj);
     Py_DECREF(accum);
     return NULL;
 }
