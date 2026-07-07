@@ -59,6 +59,15 @@ src = pybtrfs.subvolume_info("/mnt/data/project")
 snap = pybtrfs.subvolume_info("/mnt/data/project-snap")
 assert snap.parent_uuid == src.uuid
 
+# For receive-like workflows, set received-subvolume metadata explicitly.
+# The helper makes the snapshot writable, sets the metadata, then makes it
+# read-only again. The UUID must be 16 bytes and the stransid must be positive.
+pybtrfs.set_snapshot_received_uuid(
+    "/mnt/data/project-snap",
+    bytes.fromhex("00112233445566778899aabbccddeeff"),
+    42,
+)
+
 # Clean up
 pybtrfs.delete_subvolume("/mnt/data/project-snap")
 ```

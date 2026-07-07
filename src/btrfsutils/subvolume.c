@@ -292,13 +292,11 @@ mod_create_subvolume(PyObject *self, PyObject *args, PyObject *kwds)
 
 PyDoc_STRVAR(create_snapshot_doc,
 "create_snapshot(source: str, path: str, recursive: bool = False, "
-"read_only: bool = False, qgroup_inherit: QgroupInherit | None = None, "
-"received_uuid: bytes | None = None, received_stransid: int = 0) -> None\n\n"
+"read_only: bool = False, "
+"qgroup_inherit: QgroupInherit | None = None) -> None\n\n"
 "Create a snapshot of the subvolume at *source*, placing it at *path*.\n\n"
 "Set *recursive* to ``True`` to also snapshot child subvolumes.\n"
-"Set *read_only* to ``True`` to make the snapshot read-only.\n"
-"Optionally pass a 16-byte *received_uuid* and positive *received_stransid*\n"
-"to set received-subvolume metadata on the new read-only snapshot.\n\n"
+"Set *read_only* to ``True`` to make the snapshot read-only.\n\n"
 "Example::\n\n"
 "    >>> pybtrfs.create_snapshot('/mnt/btrfs/data', '/mnt/btrfs/snap')\n"
 "    >>> pybtrfs.create_snapshot(\n"
@@ -332,29 +330,112 @@ set_received_subvolume(const char *path, const char uuid[BTRFS_UUID_SIZE],
     return 0;
 }
 
+static enum btrfs_util_error
+set_snapshot_received_uuid(const char *path, const char uuid[BTRFS_UUID_SIZE],
+                           uint64_t stransid, int *ioctl_errno)
+{
+    enum btrfs_util_error err;
+
+    *ioctl_errno = 0;
+
+    err = btrfs_util_set_subvolume_read_only(path, false);
+    if (err)
+        return err;
+
+    if (set_received_subvolume(path, uuid, stransid) == -1) {
+        *ioctl_errno = errno;
+        return BTRFS_UTIL_OK;
+    }
+
+    err = btrfs_util_set_subvolume_read_only(path, true);
+    if (err)
+        return err;
+
+    return BTRFS_UTIL_OK;
+}
+
+PyDoc_STRVAR(set_snapshot_received_uuid_doc,
+"set_snapshot_received_uuid(path: str, received_uuid: bytes, "
+"received_stransid: int) -> None\n\n"
+"Set received-subvolume metadata on a snapshot.\n\n"
+"*received_uuid* must be exactly 16 bytes and *received_stransid* must be\n"
+"positive. This is a low-level helper for receive-like workflows.\n\n"
+"The snapshot is made writable before ``BTRFS_IOC_SET_RECEIVED_SUBVOL`` and\n"
+"read-only again after the ioctl succeeds.\n");
+
+static PyObject *
+mod_set_snapshot_received_uuid(PyObject *self, PyObject *args, PyObject *kwds)
+{
+    static char *kw[] = {"path", "received_uuid", "received_stransid", NULL};
+    const char *path;
+    PyObject *received_uuid_obj;
+    PyObject *received_stransid_obj;
+    char received_uuid[BTRFS_UUID_SIZE];
+    uint64_t received_stransid;
+    enum btrfs_util_error err;
+    int ioctl_errno = 0, lib_errno = 0;
+    Py_buffer uuid_view;
+    unsigned long long parsed;
+
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "sOO", kw, &path,
+                                     &received_uuid_obj,
+                                     &received_stransid_obj))
+        return NULL;
+
+    parsed = PyLong_AsUnsignedLongLong(received_stransid_obj);
+    if (PyErr_Occurred())
+        return NULL;
+    received_stransid = (uint64_t)parsed;
+    if (received_stransid == 0) {
+        PyErr_SetString(PyExc_ValueError,
+                        "received_stransid must be positive");
+        return NULL;
+    }
+
+    if (PyObject_GetBuffer(received_uuid_obj, &uuid_view, PyBUF_SIMPLE) == -1)
+        return NULL;
+    if (uuid_view.len != BTRFS_UUID_SIZE) {
+        PyBuffer_Release(&uuid_view);
+        PyErr_SetString(PyExc_ValueError,
+                        "received_uuid must be exactly 16 bytes");
+        return NULL;
+    }
+    memcpy(received_uuid, uuid_view.buf, BTRFS_UUID_SIZE);
+    PyBuffer_Release(&uuid_view);
+
+    Py_BEGIN_ALLOW_THREADS
+    err = set_snapshot_received_uuid(path, received_uuid, received_stransid,
+                                     &ioctl_errno);
+    if (err)
+        lib_errno = errno;
+    Py_END_ALLOW_THREADS
+
+    if (err) {
+        errno = lib_errno;
+        return set_error(err);
+    }
+    if (ioctl_errno) {
+        errno = ioctl_errno;
+        return PyErr_SetFromErrnoWithFilename(PyExc_OSError, path);
+    }
+    Py_RETURN_NONE;
+}
+
 static PyObject *
 mod_create_snapshot(PyObject *self, PyObject *args, PyObject *kwds)
 {
     static char *kw[] = {"source", "path", "recursive", "read_only",
-                         "qgroup_inherit", "received_uuid",
-                         "received_stransid", NULL};
+                         "qgroup_inherit", NULL};
     const char *source, *path;
     int recursive = 0, read_only = 0, flags = 0;
     PyObject *qg_obj = Py_None;
-    PyObject *received_uuid_obj = Py_None;
-    PyObject *received_stransid_obj = NULL;
     struct btrfs_util_qgroup_inherit *qg = NULL;
-    char received_uuid[BTRFS_UUID_SIZE];
-    uint64_t received_stransid = 0;
-    int set_received_errno = 0;
-    int have_received_uuid = 0;
     enum btrfs_util_error err;
 
-    if (!PyArg_ParseTupleAndKeywords(args, kwds, "ss|ppOOO", kw,
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "ss|ppO", kw,
                                      &source, &path,
                                      &recursive, &read_only,
-                                     &qg_obj, &received_uuid_obj,
-                                     &received_stransid_obj))
+                                     &qg_obj))
         return NULL;
 
     if (qg_obj != Py_None) {
@@ -366,48 +447,6 @@ mod_create_snapshot(PyObject *self, PyObject *args, PyObject *kwds)
         qg = ((QgroupInheritObject *)qg_obj)->inherit;
     }
 
-    if (received_stransid_obj) {
-        unsigned long long parsed;
-
-        parsed = PyLong_AsUnsignedLongLong(received_stransid_obj);
-        if (PyErr_Occurred())
-            return NULL;
-        received_stransid = (uint64_t)parsed;
-    }
-
-    if (received_uuid_obj != Py_None) {
-        Py_buffer uuid_view;
-
-        if (PyObject_GetBuffer(received_uuid_obj, &uuid_view, PyBUF_SIMPLE) == -1)
-            return NULL;
-        if (uuid_view.len != BTRFS_UUID_SIZE) {
-            PyBuffer_Release(&uuid_view);
-            PyErr_SetString(PyExc_ValueError,
-                            "received_uuid must be exactly 16 bytes");
-            return NULL;
-        }
-        memcpy(received_uuid, uuid_view.buf, BTRFS_UUID_SIZE);
-        PyBuffer_Release(&uuid_view);
-        have_received_uuid = 1;
-    }
-
-    if (have_received_uuid) {
-        if (!read_only) {
-            PyErr_SetString(PyExc_ValueError,
-                            "received_uuid requires read_only=True");
-            return NULL;
-        }
-        if (received_stransid == 0) {
-            PyErr_SetString(PyExc_ValueError,
-                            "received_uuid requires a positive received_stransid");
-            return NULL;
-        }
-    } else if (received_stransid != 0) {
-        PyErr_SetString(PyExc_ValueError,
-                        "received_stransid requires received_uuid");
-        return NULL;
-    }
-
     if (recursive)
         flags |= BTRFS_UTIL_CREATE_SNAPSHOT_RECURSIVE;
     if (read_only)
@@ -415,19 +454,10 @@ mod_create_snapshot(PyObject *self, PyObject *args, PyObject *kwds)
 
     Py_BEGIN_ALLOW_THREADS
     err = btrfs_util_create_snapshot(source, path, flags, NULL, qg);
-    if (!err && have_received_uuid &&
-        set_received_subvolume(path, received_uuid, received_stransid) == -1) {
-        set_received_errno = errno;
-        btrfs_util_delete_subvolume(path, BTRFS_UTIL_DELETE_SUBVOLUME_RECURSIVE);
-    }
     Py_END_ALLOW_THREADS
 
     if (err)
         return set_error(err);
-    if (set_received_errno) {
-        errno = set_received_errno;
-        return PyErr_SetFromErrnoWithFilename(PyExc_OSError, path);
-    }
     Py_RETURN_NONE;
 }
 
@@ -534,6 +564,9 @@ PyMethodDef subvolume_methods[] = {
 
     {"create_snapshot", (PyCFunction)mod_create_snapshot,
      METH_VARARGS | METH_KEYWORDS, create_snapshot_doc},
+
+    {"set_snapshot_received_uuid", (PyCFunction)mod_set_snapshot_received_uuid,
+     METH_VARARGS | METH_KEYWORDS, set_snapshot_received_uuid_doc},
 
     {"delete_subvolume", (PyCFunction)mod_delete_subvolume,
      METH_VARARGS | METH_KEYWORDS, delete_subvolume_doc},
