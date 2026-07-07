@@ -13,6 +13,7 @@ from .btrfsutils import (
     get_subvolume_read_only,
     is_subvolume,
     set_default_subvolume,
+    set_snapshot_received_uuid,
     set_subvolume_read_only,
     start_sync,
     subvolume_id,

@@ -5,6 +5,9 @@ import pytest
 import pybtrfs
 
 
+RECEIVED_UUID = bytes.fromhex("00112233445566778899aabbccddeeff")
+
+
 class TestSnapshotBasic:
     def test_create_snapshot(self, subvol, btrfs):
         snap = os.path.join(btrfs, "_snap_basic")
@@ -54,6 +57,8 @@ class TestSnapshotBasic:
             src_info = pybtrfs.subvolume_info(subvol)
             snap_info = pybtrfs.subvolume_info(snap)
             assert snap_info.parent_uuid == src_info.uuid
+            assert snap_info.received_uuid == bytes(16)
+            assert snap_info.stransid == 0
             assert snap_info.id != src_info.id
         finally:
             pybtrfs.delete_subvolume(snap)
@@ -93,6 +98,61 @@ class TestSnapshotReadOnly:
                 f.write("writable now")
         finally:
             pybtrfs.delete_subvolume(snap)
+
+
+class TestSnapshotReceivedUUID:
+    def test_create_snapshot_rejects_received_uuid_keyword(self, tmp_path):
+        source = tmp_path / "source"
+        snap = tmp_path / "snap"
+        with pytest.raises(TypeError):
+            pybtrfs.create_snapshot(str(source), str(snap), received_uuid=None)
+        assert not os.path.exists(snap)
+
+    def test_set_snapshot_received_uuid_sets_metadata(self, subvol, btrfs):
+        snap = os.path.join(btrfs, "_snap_received_uuid")
+        try:
+            pybtrfs.create_snapshot(subvol, snap)
+            assert pybtrfs.get_subvolume_read_only(snap) is False
+
+            pybtrfs.set_snapshot_received_uuid(snap, RECEIVED_UUID, 42)
+
+            snap_info = pybtrfs.subvolume_info(snap)
+            assert snap_info.received_uuid == RECEIVED_UUID
+            assert snap_info.stransid == 42
+            assert pybtrfs.get_subvolume_read_only(snap) is True
+        finally:
+            if os.path.exists(snap):
+                pybtrfs.delete_subvolume(snap)
+
+    def test_set_snapshot_received_uuid_rejects_wrong_length(self, tmp_path):
+        snap = tmp_path / "snap"
+        with pytest.raises(ValueError):
+            pybtrfs.set_snapshot_received_uuid(
+                str(snap),
+                b"too short",
+                1,
+            )
+        assert not os.path.exists(snap)
+
+    def test_set_snapshot_received_uuid_rejects_none_uuid(self, tmp_path):
+        snap = tmp_path / "snap"
+        with pytest.raises(TypeError):
+            pybtrfs.set_snapshot_received_uuid(
+                str(snap),
+                None,
+                1,
+            )
+        assert not os.path.exists(snap)
+
+    def test_set_snapshot_received_uuid_requires_positive_stransid(self, tmp_path):
+        snap = tmp_path / "snap"
+        with pytest.raises(ValueError):
+            pybtrfs.set_snapshot_received_uuid(
+                str(snap),
+                RECEIVED_UUID,
+                0,
+            )
+        assert not os.path.exists(snap)
 
 
 class TestSnapshotRecursive:
